@@ -1,0 +1,43 @@
+{
+  "operations": {
+    "+": {
+      "priority": 1,
+      "function": "a + b"
+    },
+    "-": {
+      "priority": 1,
+      "function": "a - b"
+    },
+    "*": {
+      "priority": 2,
+      "function": "a * b"
+    },
+    "/": {
+      "priority": 2,
+      "function": "a / b"
+    },
+    "^": {
+      "priority": 3,
+      "function": "a ** b"
+    },
+    ".": {
+      "priority": 1,
+      "function": "a + b/10**len(str(int(b)))"
+    },
+    "%": {
+      "priority": 2,
+      "function": "a % b"
+    }
+  },
+  "functions": {
+    "sqrt": "x**0.5",
+    "abs": "abs(x)",
+    "log2": "import math\nf = lambda x: math.log2(x)",
+    "lg": "import math\nf = lambda x: math.log(x, 10)"
+  },
+  "buttons": {
+    "text": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "*", "/", "^", "(", ")", "sqrt", ".", "%"],
+    "func": [["AC", "state.setScreen('0')"], ["DEL", "state.setScreen(state.getScreen()[:-1])"]]
+  },
+  "starting_buttons": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "*", "/", "AC", "DEL", "."]
+}
