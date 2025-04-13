@@ -16,28 +16,30 @@ import java.util.List;
 import java.util.logging.Logger;
 
 public class GameState {
-    private static final Logger LOGGER = Logger.getLogger("GameState");
-    public Random random = new Random();
-    public Map<String, CalcButton> button_types = Map.of("text", new TextButton(), "func", new FuncButton());
-    public List<CalcButton> all_buttons = new ArrayList<>();
-    public Map<String, CalcButton> button_lookup = new HashMap<>();
-    public List<CalcButton> non_infinity_buttons = new ArrayList<>();
-    public ButtonCollection buttons;
-    public ShopRerollButton reroll_button;
-    public NextRoundButton next_round_button;
-    public PyComplex goal;
-    public int shop_slots = 6;
-    public int infinity_shop_slots = 1;
+    public static final Logger LOGGER = Logger.getLogger("GameState");
+    protected Random random = new Random();
+    protected Map<String, CalcButton> button_types = Map.of("text", new TextButton(), "func", new FuncButton());
+    protected Map<String, Map<String, String>> mod_files = new HashMap<>();
+    protected Map<String, Runnable> on_round_start = new HashMap<>();
+    protected List<CalcButton> all_buttons = new ArrayList<>();
+    protected Map<String, CalcButton> button_lookup = new HashMap<>();
+    protected List<CalcButton> sellable_buttons = new ArrayList<>();
+    protected ButtonCollection buttons;
+    protected ShopRerollButton reroll_button;
+    protected NextRoundButton next_round_button;
+    protected PyComplex goal;
+    protected int shop_slots = 6;
+    protected int infinity_shop_slots = 1;
     protected String screen;
     protected PyComplex money = new PyComplex(0);
     protected boolean inShop = false;
-    public ButtonCollection shop;
-    public long current_round = 0;
-    public RenderType renderType;
-    public PrintStream out = System.out;
-    public Frame window;
-    public Panel overlay;
-    public Label calc_screen, goal_label, money_label;
+    protected ButtonCollection shop;
+    protected long current_round = 0;
+    protected RenderType renderType;
+    public final PrintStream out = System.out;
+    protected Frame window;
+    protected Panel overlay;
+    protected Label calc_screen, goal_label, money_label;
 
     public GameState() {
         prepareRender();
@@ -69,11 +71,18 @@ public class GameState {
         if (mod_list != null) {
             for (String mod_id : mod_list) {
                 File mod_folder = new File(mods, mod_id);
+                mod_files.put(mod_id, new HashMap<>());
+                for (File file : Objects.requireNonNull(mod_folder.listFiles())) {
+                    try {
+                        Scanner scanner = new Scanner(file);
+                        mod_files.get(mod_id).put(file.getName(), scanner.useDelimiter("$").next());
+                    } catch (FileNotFoundException ignored) {}
+                }
                 File config = new File(mod_folder, "config.json");
-                if (config.exists() && config.isFile()) loadConfig(config);
+                if (config.exists() && config.isFile()) loadConfig(config, mod_id);
             }
             all_buttons.forEach((b) -> button_lookup.put(b.getString(), b));
-            non_infinity_buttons.addAll(all_buttons);
+            sellable_buttons.addAll(all_buttons);
             for (String mod_id : mod_list) {
                 File mod_folder = new File(mods, mod_id);
                 File config = new File(mod_folder, "config.json");
@@ -107,7 +116,7 @@ public class GameState {
         window.add(money_label);
     }
 
-    public void loadConfig(File file) {
+    public void loadConfig(File file, String mod_id) {
         try {
             Scanner scanner = new Scanner(file);
             String s = scanner.useDelimiter("$").next();
@@ -146,7 +155,10 @@ public class GameState {
                         for (int i = 0; i < arr.length(); i++) {
                             if (arr.get(i) instanceof JSONArray args) {
                                 List<String> str_args = new ArrayList<>();
-                                for (Object o : args) str_args.add((String) o);
+                                for (Object o : args) {
+                                    if (mod_files.get(mod_id).containsKey(o)) str_args.add(mod_files.get(mod_id).get(o));
+                                    else str_args.add((String) o);
+                                }
                                 all_buttons.add(button_types.get(button_type).newButton(str_args));
                             } else all_buttons.add(button_types.get(button_type).newButton(List.of(arr.getString(i))));
                         }
@@ -215,6 +227,7 @@ public class GameState {
         setScreen(Integer.toString(random.nextInt(100)));
         if (shop != null) shop.destroy();
         current_round++;
+        on_round_start.forEach((id, f) -> f.run());
     }
 
     public void endRound() {
@@ -233,7 +246,7 @@ public class GameState {
     }
 
     public CalcButton getRandomButton() {
-        return non_infinity_buttons.get(random.nextInt(non_infinity_buttons.size()));
+        return sellable_buttons.get(random.nextInt(sellable_buttons.size()));
     }
 
     public PyComplex getPrice(CalcButton button) {
@@ -274,10 +287,11 @@ public class GameState {
 
     public void setScreen(String s) {
         if (s.startsWith("0") && s.length() > 1) s = s.substring(1);
+        if (s.endsWith("+0j)") && s.startsWith("(")) s = s.substring(1, s.length() - 4);
         screen = s;
         calc_screen.setText(s);
         try {
-            if (!inShop && Objects.equals(screen, numToString(goal))) endRound();
+            if (!inShop && Objects.equals(screen, numToString(getGoal()))) endRound();
         } catch (NumberFormatException ignored) {}
     }
 
@@ -305,6 +319,50 @@ public class GameState {
         String tmp = x.toString();
         if (tmp.endsWith("+0j)") && tmp.startsWith("(")) tmp = tmp.substring(1, tmp.length() - 4);
         return tmp;
+    }
+
+    public PyComplex getGoal() {
+        return goal;
+    }
+
+    public RenderType getRenderType() {
+        return renderType;
+    }
+
+    public ButtonCollection getCurrentButtons() {
+        return buttons;
+    }
+
+    public List<CalcButton> getAllButtons() {
+        return all_buttons;
+    }
+
+    public Frame getWindow() {
+        return window;
+    }
+
+    public List<CalcButton> getSellableButtons() {
+        return sellable_buttons;
+    }
+
+    public CalcButton getButton(String name) {
+        return button_lookup.get(name);
+    }
+
+    public Object randomChoice(List<Object> in) {
+        return in.get(random.nextInt(in.size()));
+    }
+
+    public int randint(int min, int max) {
+        return random.nextInt(min, max);
+    }
+
+    public void onRoundStart(String id, PyObject f) {
+        on_round_start.put(id, f::__call__);
+    }
+
+    public void removeOnRoundStart(String id) {
+        on_round_start.remove(id);
     }
 
     public enum RenderType {

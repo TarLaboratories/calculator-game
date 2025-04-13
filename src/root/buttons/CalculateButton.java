@@ -34,6 +34,10 @@ public class CalculateButton extends TextButton {
             this.b = b;
         }
 
+        public Formula(@Nullable PyComplex constant) {
+            this.constant = constant;
+        }
+
         public PyComplex calc() throws InvalidFormulaException {
             if (constant != null) return constant;
             else if (op != null && b != null) return op.f().apply(a.calc(), b.calc());
@@ -48,13 +52,12 @@ public class CalculateButton extends TextButton {
             else throw new InvalidFormulaException("Formula does not contain an operation and second operand or unary function");
         }
 
-        @Override
-        public String toString() {
-            if (constant != null) return constant.toString();
-            if (f != null) return rev_funcs.get(f) + '(' + a.toString() + ')';
+        public String toString(GameState state) {
+            if (constant != null) return state.numToString(constant);
+            if (f != null) return rev_funcs.get(f) + '(' + a.toString(state) + ')';
             assert op != null;
             assert b != null;
-            return '(' + a.toString() + rev_ops.get(op) + b.toString() + ')';
+            return '(' + a.toString(state) + rev_ops.get(op) + b.toString(state) + ')';
         }
 
         public Formula andThen(Function<PyComplex, PyComplex> f) {
@@ -117,8 +120,15 @@ public class CalculateButton extends TextButton {
 
                     } else {
                         if (cur.op.priority >= op.priority || cur.tmp_return_info == -2) {
-                            cur = new Formula(cur, op, null);
-                            last_op = i;
+                            if (cur.a != null && cur.b == null && c == '-') {
+                                cur = new Formula(cur.a, cur.op, new Formula(new Formula(new PyComplex(0.)), op, fromString(s, i + 1, end, cur.op.priority)));
+                                assert cur.b != null && cur.b.b != null;
+                                if (cur.b.b.tmp_return_info != -1)
+                                    i = cur.b.b.tmp_return_info;
+                            } else {
+                                cur = new Formula(cur, op, null);
+                                last_op = i;
+                            }
                         } else {
                             cur = new Formula(cur.a, cur.op, fromString(s, last_op + 1, end, cur.op.priority));
                             assert cur.b != null;
@@ -152,12 +162,13 @@ public class CalculateButton extends TextButton {
         String s = state.getScreen();
         try {
             Formula f = Formula.fromString(s);
-            state.out.println(f);
+            GameState.LOGGER.info("Parsed formula: %s".formatted(f.toString(state)));
             String res = state.numToString(f.calc());
             state.addMoney(f.countOperations());
             state.setScreen(res);
         } catch (InvalidFormulaException e) {
-            state.out.println("Invalid formula " + s + ": " + e.getMessage());
+            GameState.LOGGER.warning("Invalid formula " + s + ": " + e.getMessage());
+            state.setScreen("");
         }
     }
 

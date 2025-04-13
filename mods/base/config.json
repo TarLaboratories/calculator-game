@@ -21,8 +21,8 @@
       "function": "a ** b"
     },
     ".": {
-      "priority": 1,
-      "function": "a + b/10**len(str(int(b)))"
+      "priority": 100,
+      "function": "a + b/10**len(str(int(b.real)))"
     },
     "%": {
       "priority": 2,
@@ -36,8 +36,19 @@
     "lg": "import math\nf = lambda x: math.log(x, 10)"
   },
   "buttons": {
-    "text": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "*", "/", "^", "(", ")", "sqrt", ".", "%"],
-    "func": [["AC", "state.setScreen('0')"], ["DEL", "state.setScreen(state.getScreen()[:-1])"]]
+    "text": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "*", "/", "^", "(", ")", "sqrt", ".", "%", "lg", "log2", "abs"],
+    "func": [
+      ["AC", "state.setScreen('0')"],
+      ["DEL", "state.setScreen(state.getScreen()[:-1])"],
+      ["RAND", "state.setScreen(str(state.randint(0, 100)))"],
+      ["++", "state.setScreen(str(complex(state.getScreen()) + 1))"],
+      ["--", "state.setScreen(str(complex(state.getScreen()) - 1))"],
+      ["NICE", "state.setScreen(state.getScreen() + '69')"],
+      [":)", "state.setScreen(state.getGoal() - 1)"],
+      ["X", "pass"],
+      [">:)", "button-walker.py"],
+      ["ROUND", "state.setScreen(round(complex(state.getScreen())))"]
+    ]
   },
-  "starting_buttons": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "*", "/", "AC", "DEL", "."]
+  "starting_buttons": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "*", "/", "AC", "DEL", ".", "ROUND"]
 }
