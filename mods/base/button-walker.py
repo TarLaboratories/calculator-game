@@ -11,7 +11,7 @@ def on_round_start():
     state.setMoney(state.getMoney() + 4)
 
 state.onRoundStart("walker-button", on_round_start)
-if state.randint(0, 5) > 0:
+if not state.chance(1, 4):
     lol()
 else:
     state.getCurrentButtons().setButton(state.getCurrentButtons().getCoords(state.getButton('>:)')), state.getRandomButton())

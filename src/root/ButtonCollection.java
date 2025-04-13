@@ -144,6 +144,10 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         add(button, CalcButton.Properties.count(count));
     }
 
+    public void addCount(CalcButton button, PyComplex count) {
+        this.add(button, count);
+    }
+
     public int getWidth() {
         return max_width;
     }
@@ -173,6 +177,12 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         if (getButton(coords.right()) != null) out.add(coords.right());
         if (getButton(coords.up()) != null) out.add(coords.up());
         if (getButton(coords.down()) != null) out.add(coords.down());
+        return out;
+    }
+
+    public List<CalcButton> getButtons() {
+        ArrayList<CalcButton> out = new ArrayList<>();
+        this.forEach((b) -> out.add(b.button));
         return out;
     }
 }

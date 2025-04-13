@@ -4,17 +4,27 @@ import org.python.core.PyComplex;
 import root.GameState;
 
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 
 public class TextButton implements CalcButton {
     protected final String text;
+    protected final String tooltip;
 
     public TextButton() {
         this.text = null;
+        this.tooltip = null;
     }
 
     public TextButton(String text) {
         this.text = text;
+        this.tooltip = null;
+    }
+
+    public TextButton(String text, String tooltip) {
+        this.text = text;
+        this.tooltip = tooltip;
     }
 
     @Override
@@ -35,6 +45,7 @@ public class TextButton implements CalcButton {
             state.setScreen(state.getScreen().concat(text));
         }
         render(state, properties);
+        state.saveUndoState();
     }
 
     @Override
@@ -73,6 +84,19 @@ public class TextButton implements CalcButton {
                 Button b = new Button(text);
                 b.setBounds(bounds);
                 b.addActionListener((_) -> onClick(state, properties));
+                bounds.x += bounds.width + state.getButtonPadding()/2;
+                bounds.width *= 3;
+                b.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseEntered(MouseEvent e) {
+                        if (tooltip != null) state.setTooltip(tooltip, bounds);
+                    }
+
+                    @Override
+                    public void mouseExited(MouseEvent e) {
+                        state.removeTooltip();
+                    }
+                });
                 properties.rendered_button = b;
                 window.add(b);
             }
@@ -103,7 +127,9 @@ public class TextButton implements CalcButton {
 
     @Override
     public CalcButton newButton(List<String> args) {
-        return new TextButton(args.getFirst());
+        String tooltip_start = "Appends '" + args.getFirst() + "' to the screen. ";
+        if (args.size() > 1) return new TextButton(args.getFirst(), tooltip_start + args.get(1));
+        return new TextButton(args.getFirst(), tooltip_start);
     }
 
     @Override

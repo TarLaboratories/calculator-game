@@ -30,24 +30,38 @@
     }
   },
   "functions": {
-    "sqrt": "x**0.5",
+    "sqrt": "x**0.5 if x >= 0 else complex(0, (-x)**0.5)",
     "abs": "abs(x)",
     "log2": "import math\nf = lambda x: math.log2(x)",
     "lg": "import math\nf = lambda x: math.log(x, 10)"
   },
   "buttons": {
-    "text": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "*", "/", "^", "(", ")", "sqrt", ".", "%", "lg", "log2", "abs"],
+    "text": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+      ["+", "Addition. Counts as an operation (+$1 when calculating)"],
+      ["-", "Subtraction. Counts as an operation (+$1 when calculating)"],
+      ["*", "Multiplication. Counts as an operation (+$1 when calculating)"],
+      ["/", "Division. Counts as an operation (+$1 when calculating)"],
+      ["^", "Exponential (a ^ b = a*a*...*a (b times)). Counts as an operation (+$1 when calculating)"],
+      ["(", "Used to change the order of operations and required for functions."],
+      [")", "Used to change the order of operations and required for functions."],
+      ["sqrt", "Square root. Supports only real numbers. Counts as a function (arguments are required to be in brackets)"],
+      [".", "Decimal point. Counts as an operation (+$1 when calculating)"],
+      ["%", "Modulo (a % b = a - floor(a/b)). Counts as an operation (+$1 when calculating)"],
+      ["lg", "Decimal logarithm (10 ^ lg(a) = a). Counts as a function (arguments are required to be in brackets)"],
+      ["log2", "Binary logarithm (2 ^ lg(a) = a). Counts as a function (arguments are required to be in brackets)"],
+      ["abs", "Absolute value (abs(a) = -a if a is less than 0, abs(a) = a otherwise). Counts as a function (arguments are required to be in brackets)"]],
     "func": [
-      ["AC", "state.setScreen('0')"],
-      ["DEL", "state.setScreen(state.getScreen()[:-1])"],
-      ["RAND", "state.setScreen(str(state.randint(0, 100)))"],
-      ["++", "state.setScreen(str(complex(state.getScreen()) + 1))"],
-      ["--", "state.setScreen(str(complex(state.getScreen()) - 1))"],
-      ["NICE", "state.setScreen(state.getScreen() + '69')"],
-      [":)", "state.setScreen(state.getGoal() - 1)"],
-      ["X", "pass"],
-      [">:)", "button-walker.py"],
-      ["ROUND", "state.setScreen(round(complex(state.getScreen())))"]
+      ["AC", "state.setScreen('0')", "Sets current number to 0"],
+      ["DEL", "state.setScreen(state.getScreen()[:-1])", "Removes the last symbol on the calculator screen"],
+      ["RAND", "state.setScreen(str(state.randint(0, 100)))", "Sets the current number to a random number between 0 and 99 (inclusive)"],
+      ["++", "state.setScreen(str(complex(state.getScreen()) + 1))", "Adds 1 to the current number"],
+      ["--", "state.setScreen(str(complex(state.getScreen()) - 1))", "Reduces the current number by 1"],
+      ["NICE", "state.setScreen(state.getScreen() + '69')", "Sets the current number to 69"],
+      [":)", "state.setScreen(state.getGoal() - 1)", "Sets the current number to (goal - 1)"],
+      ["X", "pass", "Does nothing?"],
+      [">:)", "button-walker.py", "When clicked, changes it's position to a neighbouring button and sets the old button to 'X' (does nothing?). At start of round (if was clicked before) gives $4 and has the same effect as clicking (does not reduce count)"],
+      ["ROUND", "state.setScreen(round(complex(state.getScreen())))", "Rounds the current number to the nearest integer"],
+      ["WOF", "wheel.py", "Has a 1 in 4 chance to add 2 to the count of all buttons currently on the calculator"]
     ]
   },
   "starting_buttons": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "*", "/", "AC", "DEL", ".", "ROUND"]

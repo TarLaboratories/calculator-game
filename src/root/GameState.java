@@ -8,9 +8,12 @@ import org.python.util.PythonInterpreter;
 import root.buttons.*;
 
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.List;
 import java.util.logging.Logger;
@@ -27,6 +30,7 @@ public class GameState {
     protected ButtonCollection buttons;
     protected ShopRerollButton reroll_button;
     protected NextRoundButton next_round_button;
+    protected UndoButton undo_button;
     protected PyComplex goal;
     protected int shop_slots = 6;
     protected int infinity_shop_slots = 1;
@@ -40,6 +44,10 @@ public class GameState {
     protected Frame window;
     protected Panel overlay;
     protected Label calc_screen, goal_label, money_label;
+    protected List<Label> tooltip_labels;
+    protected Panel tooltip_bg;
+    protected List<GameState> undo_stack = new ArrayList<>();
+    protected int cur_undo_stack_i = -1;
 
     public GameState() {
         prepareRender();
@@ -48,6 +56,23 @@ public class GameState {
         buttons.add(all_buttons.getLast(), CalcButton.Properties.count(1.).infinity());
         prepareCalculatorRender();
         nextRound();
+    }
+
+    @SuppressWarnings("CopyConstructorMissesField")
+    public GameState(GameState c) {
+        this.setEverything(c);
+    }
+
+    public void setEverything(GameState state) {
+        for (Field field : GameState.class.getFields()) {
+            try {
+                field.set(this, field.get(state));
+            } catch (IllegalAccessException ignored) {}
+        }
+        LOGGER.info(getScreen());
+        setScreen(getScreen());
+        buttons.render();
+        if (inShop) shop.render();
     }
 
     public void prepareRender() {
@@ -61,7 +86,24 @@ public class GameState {
         overlay.setLayout(null);
         overlay.setSize(600, 600);
         overlay.setVisible(false);
+        tooltip_labels = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            Label tooltip_label = new Label();
+            tooltip_label.setBackground(Color.GRAY);
+            tooltip_label.setVisible(false);
+            window.add(tooltip_label);
+            tooltip_labels.add(tooltip_label);
+        }
+        tooltip_bg = new Panel();
+        tooltip_bg.setBackground(Color.GRAY);
+        tooltip_bg.setVisible(false);
+        window.add(tooltip_bg);
         buttons = new ButtonCollection(getCalculatorDimensions(), this);
+    }
+
+    public void saveUndoState() {
+        undo_stack.add(new GameState(GameState.this));
+        cur_undo_stack_i++;
     }
 
     public void loadMods() {
@@ -94,6 +136,8 @@ public class GameState {
     public void prepareCalculatorRender() {
         reroll_button = new ShopRerollButton();
         next_round_button = new NextRoundButton();
+        undo_button = new UndoButton();
+        buttons.add(undo_button, CalcButton.Properties.count(1).infinity());
         calc_screen = new Label();
         Rectangle screen_pos = getScreenDimensions();
         screen_pos.x = (int) Math.round(screen_pos.getCenterX());
@@ -363,6 +407,51 @@ public class GameState {
 
     public void removeOnRoundStart(String id) {
         on_round_start.remove(id);
+    }
+
+    public boolean chance(int a, int b) {
+        return this.randint(0, b) < a;
+    }
+
+    public void setTooltip(String text, Rectangle bounds) {
+        FontMetrics m = tooltip_labels.getFirst().getFontMetrics(tooltip_labels.getFirst().getFont());
+        StringBuilder tmp_line = new StringBuilder();
+        Scanner idk = new Scanner(text);
+        int cur_label = 0;
+        Rectangle cur_bounds = new Rectangle(bounds), bg_bounds = new Rectangle(bounds);
+        cur_bounds.height = m.getHeight();
+        while (idk.hasNext()) {
+            String next = idk.next();
+            if (m.stringWidth(tmp_line + next + " ") < bounds.width) tmp_line.append(next).append(" ");
+            else {
+                Label tooltip_label = tooltip_labels.get(cur_label);
+                tooltip_label.setText(tmp_line.toString());
+                tooltip_label.setBounds(cur_bounds);
+                tooltip_label.setVisible(true);
+                tmp_line = new StringBuilder(next + " ");
+                cur_bounds.y += cur_bounds.height + 1;
+                bg_bounds.height = Math.max(bg_bounds.height, cur_bounds.y + cur_bounds.height - bg_bounds.y);
+                cur_label++;
+            }
+        }
+        Label tooltip_label = tooltip_labels.get(cur_label);
+        tooltip_label.setText(tmp_line.toString());
+        tooltip_label.setBounds(cur_bounds);
+        tooltip_label.setVisible(true);
+        tooltip_bg.setBounds(bg_bounds);
+        tooltip_bg.setVisible(true);
+    }
+
+    public void removeTooltip() {
+        tooltip_bg.setVisible(false);
+        tooltip_labels.forEach((l) -> l.setVisible(false));
+    }
+
+    public void undo() {
+        if (!undo_stack.isEmpty()) {
+            this.setEverything(undo_stack.get(cur_undo_stack_i));
+            cur_undo_stack_i--;
+        }
     }
 
     public enum RenderType {

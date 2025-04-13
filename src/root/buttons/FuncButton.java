@@ -10,6 +10,11 @@ import java.util.function.Consumer;
 public class FuncButton extends TextButton {
     protected final Consumer<GameState> func;
 
+    public FuncButton(String text, Consumer<GameState> f, String tooltip) {
+        super(text, tooltip);
+        func = f;
+    }
+
     public FuncButton(String text, Consumer<GameState> f) {
         super(text);
         func = f;
@@ -39,15 +44,18 @@ public class FuncButton extends TextButton {
             render(state, properties);
             func.accept(state);
         }
+        state.saveUndoState();
     }
 
     @Override
     public CalcButton newButton(List<String> args) {
         try (PythonInterpreter py = new PythonInterpreter()) {
-            return new FuncButton(args.getFirst(), (state) -> {
+            Consumer<GameState> f = (state) -> {
                 py.set("state", state);
                 py.exec(args.get(1));
-            });
+            };
+            if (args.size() > 2) return new FuncButton(args.getFirst(), f, args.get(2));
+            return new FuncButton(args.getFirst(), f);
         }
     }
 }

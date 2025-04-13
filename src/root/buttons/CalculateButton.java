@@ -52,11 +52,10 @@ public class CalculateButton extends TextButton {
             else throw new InvalidFormulaException("Formula does not contain an operation and second operand or unary function");
         }
 
-        public String toString(GameState state) {
+        public String toString(GameState state) throws InvalidFormulaException {
             if (constant != null) return state.numToString(constant);
             if (f != null) return rev_funcs.get(f) + '(' + a.toString(state) + ')';
-            assert op != null;
-            assert b != null;
+            if (op == null || b == null) throw new InvalidFormulaException("Formula does not contain an operation and second operand");
             return '(' + a.toString(state) + rev_ops.get(op) + b.toString(state) + ')';
         }
 
@@ -154,7 +153,7 @@ public class CalculateButton extends TextButton {
     protected static Map<Function<PyComplex, PyComplex>, String> rev_funcs = new HashMap<>();
 
     public CalculateButton() {
-        super("=");
+        super("=", "Calculates the result of the expression currently on screen. If it is invalid, sets screen to 0.");
     }
 
     @Override
