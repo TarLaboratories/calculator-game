@@ -8,12 +8,11 @@ import org.python.util.PythonInterpreter;
 import root.buttons.*;
 
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.List;
 import java.util.logging.Logger;
@@ -31,6 +30,7 @@ public class GameState {
     protected ShopRerollButton reroll_button;
     protected NextRoundButton next_round_button;
     protected UndoButton undo_button;
+    protected RedoButton redo_button;
     protected PyComplex goal;
     protected int shop_slots = 6;
     protected int infinity_shop_slots = 1;
@@ -56,6 +56,7 @@ public class GameState {
         buttons.add(all_buttons.getLast(), CalcButton.Properties.count(1.).infinity());
         prepareCalculatorRender();
         nextRound();
+        saveUndoState();
     }
 
     @SuppressWarnings("CopyConstructorMissesField")
@@ -63,15 +64,27 @@ public class GameState {
         this.setEverything(c);
     }
 
-    public void setEverything(GameState state) {
-        for (Field field : GameState.class.getFields()) {
+    private <T> T copy(T obj) {
+        Object out = new Object();
+        for (Field field : obj.getClass().getDeclaredFields()) {
             try {
+                if ((field.getModifiers() & Modifier.STATIC) != 0) continue;
+                if (!field.getType().isPrimitive()) field.set(out, copy(field.get(obj)));
+                else field.set(out, field.get(obj));
+            } catch (IllegalAccessException ignored) {}
+        }
+        return (T) out;
+    }
+
+    public void setEverything(GameState state) {
+        for (Field field : GameState.class.getDeclaredFields()) {
+            try {
+                if ((field.getModifiers() & Modifier.STATIC) != 0) continue;
                 field.set(this, field.get(state));
             } catch (IllegalAccessException ignored) {}
         }
-        LOGGER.info(getScreen());
-        setScreen(getScreen());
         buttons.render();
+        setScreen(getScreen());
         if (inShop) shop.render();
     }
 
@@ -102,8 +115,11 @@ public class GameState {
     }
 
     public void saveUndoState() {
-        undo_stack.add(new GameState(GameState.this));
         cur_undo_stack_i++;
+        if (undo_stack.size() <= cur_undo_stack_i)
+            undo_stack.add(new GameState(GameState.this));
+        else
+            undo_stack.set(cur_undo_stack_i, new GameState(GameState.this));
     }
 
     public void loadMods() {
@@ -137,7 +153,9 @@ public class GameState {
         reroll_button = new ShopRerollButton();
         next_round_button = new NextRoundButton();
         undo_button = new UndoButton();
+        redo_button = new RedoButton();
         buttons.add(undo_button, CalcButton.Properties.count(1).infinity());
+        buttons.add(redo_button, CalcButton.Properties.count(1).infinity());
         calc_screen = new Label();
         Rectangle screen_pos = getScreenDimensions();
         screen_pos.x = (int) Math.round(screen_pos.getCenterX());
@@ -200,7 +218,7 @@ public class GameState {
                             if (arr.get(i) instanceof JSONArray args) {
                                 List<String> str_args = new ArrayList<>();
                                 for (Object o : args) {
-                                    if (mod_files.get(mod_id).containsKey(o)) str_args.add(mod_files.get(mod_id).get(o));
+                                    if (mod_files.get(mod_id).containsKey((String) o)) str_args.add(mod_files.get(mod_id).get(o));
                                     else str_args.add((String) o);
                                 }
                                 all_buttons.add(button_types.get(button_type).newButton(str_args));
@@ -448,9 +466,16 @@ public class GameState {
     }
 
     public void undo() {
-        if (!undo_stack.isEmpty()) {
-            this.setEverything(undo_stack.get(cur_undo_stack_i));
+        if (cur_undo_stack_i > 0) {
             cur_undo_stack_i--;
+            this.setEverything(undo_stack.get(cur_undo_stack_i));
+        }
+    }
+
+    public void redo() {
+        if (cur_undo_stack_i + 1 < undo_stack.size()) {
+            cur_undo_stack_i++;
+            this.setEverything(undo_stack.get(cur_undo_stack_i));
         }
     }
 
