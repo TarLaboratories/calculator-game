@@ -4,7 +4,8 @@ import root.GameState;
 
 public class NextRoundButton extends TextButton {
     public NextRoundButton() {
-        super("Next Round");
+        super();
+        text = "Next Round";
     }
 
     @Override

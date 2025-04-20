@@ -2,6 +2,7 @@ package root.buttons;
 
 import org.python.core.PyComplex;
 import org.python.util.PythonInterpreter;
+import root.Action;
 import root.GameState;
 
 import java.awt.*;
@@ -11,42 +12,15 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class FuncButton implements CalcButton {
-    protected final Consumer<GameState> func;
-    protected final Consumer<GameState> undo;
-    protected final String text;
-    protected final String tooltip;
+    protected String text;
+    protected String tooltip;
+    protected Action action;
 
-    public FuncButton(String text, Consumer<GameState> f, Consumer<GameState> undo, String tooltip) {
-        this.text = text;
-        this.tooltip = tooltip;
-        func = f;
-        this.undo = undo;
-    }
-
-    public FuncButton(String text, Consumer<GameState> f, String tooltip) {
-        this.text = text;
-        this.tooltip = tooltip;
-        func = f;
-        this.undo = null;
-    }
-
-    public FuncButton(String text, Consumer<GameState> f) {
-        this.text = text;
-        this.tooltip = null;
-        func = f;
-        this.undo = null;
-    }
-
-    public FuncButton() {
-        text = null;
-        tooltip = null;
-        func = null;
-        undo = null;
-    }
+    public FuncButton() {}
 
     @Override
     public void onClick(GameState state, Properties properties) {
-        if (func == null) throw new UnsupportedOperationException("This button was initialised without arguments, and is valid only for constructing buttons");
+        if (action == null) throw new UnsupportedOperationException("This button was initialised without arguments, and is valid only for constructing buttons");
         if (properties.price != null) {
             if (state.getMoney().__cmp__(properties.price) == -1) return;
             state.subMoney(properties.price);
@@ -59,22 +33,71 @@ public class FuncButton implements CalcButton {
             destroy(state, properties);
         } else if (properties.count != null) {
             if (!properties.infinity && properties.count.real == 0 && properties.count.imag == 0) return;
-            if (!properties.infinity) properties.count.real--;
-            render(state, properties);
-            func.accept(state);
+            state.doAction(new Action() {
+                @Override
+                public void redo(GameState state) {
+                    if (!properties.infinity) properties.decreaseCount();
+                    render(state, properties);
+                }
+
+                @Override
+                public void undo(GameState state) {
+                    if (!properties.infinity) properties.increaseCount();
+                    render(state, properties);
+                }
+
+                @Override
+                public boolean undoable(GameState state) {
+                    return true;
+                }
+            }.andThen(action));
         }
     }
 
+    /**
+     * Creates a new button that has text and an action associated with it.
+     * @param args arguments for creating the button in the following format:<br>
+     *             {@code 0} - the text to be displayed<br>
+     *             {@code 1} - a string of python code representing what to do when clicked<br>
+     *             {@code 2} - the tooltip of the button to be displayed (optional)<br>
+     *             {@code 3} - a string of python code representing the undo function (optional)
+     * @return a button object that can be rendered and pressed
+     */
     @Override
     public CalcButton newButton(List<String> args) {
+        FuncButton out = new FuncButton();
         try (PythonInterpreter py = new PythonInterpreter()) {
             Consumer<GameState> f = (state) -> {
                 py.set("state", state);
                 py.exec(args.get(1));
             };
-            if (args.size() > 2) return new FuncButton(args.getFirst(), f, args.get(2));
-            return new FuncButton(args.getFirst(), f);
+            Consumer<GameState> u;
+            if (args.size() > 3) {
+                u = (state) -> {
+                    py.set("state", state);
+                    py.exec(args.get(3));
+                };
+            } else u = (_) -> {};
+            out.text = args.getFirst();
+            if (args.size() > 2) out.tooltip = args.get(2);
+            out.action = new Action() {
+                @Override
+                public void redo(GameState state) {
+                    f.accept(state);
+                }
+
+                @Override
+                public void undo(GameState state) {
+                    u.accept(state);
+                }
+
+                @Override
+                public boolean undoable(GameState state) {
+                    return args.size() > 3;
+                }
+            };
         }
+        return out;
     }
 
     @Override

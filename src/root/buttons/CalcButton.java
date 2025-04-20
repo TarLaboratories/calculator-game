@@ -52,6 +52,16 @@ public interface CalcButton {
             return this;
         }
 
+        public void decreaseCount() {
+            if (count == null) count = new PyComplex(0.);
+            count.real--;
+        }
+
+        public void increaseCount() {
+            if (count == null) count = new PyComplex(0.);
+            count.real++;
+        }
+
         public static Properties copy(Properties properties) {
             Properties p = new Properties();
             p.count = properties.count;

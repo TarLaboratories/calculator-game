@@ -4,7 +4,9 @@ import root.GameState;
 
 public class UndoButton extends TextButton {
     public UndoButton() {
-        super("UNDO", "Undoes the last click.");
+        super();
+        text = "UNDO";
+        tooltip = "Undoes the last click.";
     }
 
     @Override

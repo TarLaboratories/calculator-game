@@ -434,7 +434,7 @@ public class GameState {
     }
 
     public void undo() {
-        if (cur_undo_stack_i > 0) {
+        if (cur_undo_stack_i >= 0 && undo_stack.get(cur_undo_stack_i).undoable(this)) {
             undo_stack.get(cur_undo_stack_i).undo(this);
             cur_undo_stack_i--;
         }
@@ -449,7 +449,7 @@ public class GameState {
 
     public void doAction(Action action) {
         action.redo(this);
-        if (undo_stack.size() >= cur_undo_stack_i) undo_stack.removeLast();
+        if (undo_stack.size() > cur_undo_stack_i + 1) undo_stack.removeLast();
         cur_undo_stack_i++;
         undo_stack.add(action);
     }

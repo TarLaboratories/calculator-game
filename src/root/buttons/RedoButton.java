@@ -4,7 +4,8 @@ import root.GameState;
 
 public class RedoButton extends TextButton {
     public RedoButton() {
-        super("REDO");
+        super();
+        text = "REDO";
     }
 
     @Override

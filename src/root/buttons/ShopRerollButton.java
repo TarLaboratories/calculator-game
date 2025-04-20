@@ -4,7 +4,8 @@ import root.GameState;
 
 public class ShopRerollButton extends TextButton {
     public ShopRerollButton() {
-        super("Reroll");
+        super();
+        text = "Reroll";
     }
 
     @Override

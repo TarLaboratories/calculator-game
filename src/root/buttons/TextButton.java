@@ -1,23 +1,17 @@
 package root.buttons;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class TextButton extends FuncButton {
-    public TextButton(String text, String tooltip) {
-        super(text, (state) -> state.setScreen(state.getScreen().concat(text)), tooltip);
-    }
-
-    public TextButton(String text) {
-        super(text, (state) -> state.setScreen(state.getScreen().concat(text)));
-    }
-
-    public TextButton() {
-        super();
-    }
-
     @Override
     public CalcButton newButton(List<String> args) {
-        if (args.size() > 1) return new TextButton(args.getFirst(), args.get(1));
-        return new TextButton(args.getFirst());
+        List<String> funcArgs = new ArrayList<>();
+        funcArgs.add(args.getFirst());
+        funcArgs.add("state.setScreen(state.getScreen()+'%s')".formatted(args.getFirst()));
+        if (args.size() > 1) funcArgs.add(args.get(1));
+        else funcArgs.add(null);
+        funcArgs.add("state.setScreen(state.getScreen()[:-%d])".formatted(args.getFirst().length()));
+        return super.newButton(funcArgs);
     }
 }
