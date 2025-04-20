@@ -11,8 +11,6 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.List;
 import java.util.logging.Logger;
@@ -46,46 +44,24 @@ public class GameState {
     protected Label calc_screen, goal_label, money_label;
     protected List<Label> tooltip_labels;
     protected Panel tooltip_bg;
-    protected List<GameState> undo_stack = new ArrayList<>();
+    protected List<Action> undo_stack = new ArrayList<>();
     protected int cur_undo_stack_i = -1;
+    protected long seed;
 
     public GameState() {
+        seed = random.nextLong();
+        random.setSeed(seed);
         prepareRender();
         loadMods();
         all_buttons.add(new CalculateButton());
         buttons.add(all_buttons.getLast(), CalcButton.Properties.count(1.).infinity());
         prepareCalculatorRender();
         nextRound();
-        saveUndoState();
     }
 
     @SuppressWarnings("CopyConstructorMissesField")
     public GameState(GameState c) {
-        this.setEverything(c);
-    }
 
-    private <T> T copy(T obj) {
-        Object out = new Object();
-        for (Field field : obj.getClass().getDeclaredFields()) {
-            try {
-                if ((field.getModifiers() & Modifier.STATIC) != 0) continue;
-                if (!field.getType().isPrimitive()) field.set(out, copy(field.get(obj)));
-                else field.set(out, field.get(obj));
-            } catch (IllegalAccessException ignored) {}
-        }
-        return (T) out;
-    }
-
-    public void setEverything(GameState state) {
-        for (Field field : GameState.class.getDeclaredFields()) {
-            try {
-                if ((field.getModifiers() & Modifier.STATIC) != 0) continue;
-                field.set(this, field.get(state));
-            } catch (IllegalAccessException ignored) {}
-        }
-        buttons.render();
-        setScreen(getScreen());
-        if (inShop) shop.render();
     }
 
     public void prepareRender() {
@@ -112,14 +88,6 @@ public class GameState {
         tooltip_bg.setVisible(false);
         window.add(tooltip_bg);
         buttons = new ButtonCollection(getCalculatorDimensions(), this);
-    }
-
-    public void saveUndoState() {
-        cur_undo_stack_i++;
-        if (undo_stack.size() <= cur_undo_stack_i)
-            undo_stack.add(new GameState(GameState.this));
-        else
-            undo_stack.set(cur_undo_stack_i, new GameState(GameState.this));
     }
 
     public void loadMods() {
@@ -467,16 +435,23 @@ public class GameState {
 
     public void undo() {
         if (cur_undo_stack_i > 0) {
+            undo_stack.get(cur_undo_stack_i).undo(this);
             cur_undo_stack_i--;
-            this.setEverything(undo_stack.get(cur_undo_stack_i));
         }
     }
 
     public void redo() {
         if (cur_undo_stack_i + 1 < undo_stack.size()) {
             cur_undo_stack_i++;
-            this.setEverything(undo_stack.get(cur_undo_stack_i));
+            undo_stack.get(cur_undo_stack_i).redo(this);
         }
+    }
+
+    public void doAction(Action action) {
+        action.redo(this);
+        if (undo_stack.size() >= cur_undo_stack_i) undo_stack.removeLast();
+        cur_undo_stack_i++;
+        undo_stack.add(action);
     }
 
     public enum RenderType {
