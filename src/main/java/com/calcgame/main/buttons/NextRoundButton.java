@@ -1,6 +1,6 @@
-package root.buttons;
+package com.calcgame.main.buttons;
 
-import root.GameState;
+import com.calcgame.main.GameState;
 
 public class NextRoundButton extends TextButton {
     public NextRoundButton() {

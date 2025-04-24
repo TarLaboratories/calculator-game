@@ -1,8 +1,9 @@
-package root.buttons;
+package com.calcgame.main.buttons;
 
 import org.jetbrains.annotations.Nullable;
 import org.python.core.PyComplex;
-import root.GameState;
+import com.calcgame.main.ButtonCollection;
+import com.calcgame.main.GameState;
 
 import java.awt.*;
 import java.util.List;
@@ -25,6 +26,8 @@ public interface CalcButton {
         public boolean infinity = false, sold = false;
         public Button rendered_button;
         public Label rendered_price, rendered_count;
+        public ButtonCollection collection;
+        public ButtonCollection.Coordinate pos;
 
         public static Properties price(PyComplex price) {
             Properties properties = new Properties();

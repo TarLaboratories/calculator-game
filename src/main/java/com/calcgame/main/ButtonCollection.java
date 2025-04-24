@@ -1,7 +1,7 @@
-package root;
+package com.calcgame.main;
 
 import org.python.core.PyComplex;
-import root.buttons.CalcButton;
+import com.calcgame.main.buttons.CalcButton;
 
 import java.awt.Rectangle;
 
@@ -122,6 +122,8 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         } else cur_height = Math.max(cur_height, button.getHeight(state, properties));
         tmp_button.properties.x = last_x;
         tmp_button.properties.y = last_y;
+        tmp_button.properties.collection = this;
+        tmp_button.properties.pos = cur;
         this.buttons_by_coords.put(cur, tmp_button);
         max_width = Math.max(last_x + button.getWidth(state, properties) - x, max_width);
         button.render(state, properties);

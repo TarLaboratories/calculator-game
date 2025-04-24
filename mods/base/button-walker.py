@@ -1,10 +1,10 @@
 def lol():
-    buttons = state.getCurrentButtons()
+    com.calcgame.main.buttons = state.getCurrentButtons()
     this_button = state.getButton('>:)')
-    this_coords = buttons.getCoords(this_button)
-    target = state.randomChoice([i for i in buttons.getNeighbourCoords(this_button) if not buttons.getButton(i).getString() == '='])
-    buttons.setButton(this_coords, state.getButton('X'))
-    buttons.setButton(target, this_button)
+    this_coords = com.calcgame.main.buttons.getCoords(this_button)
+    target = state.randomChoice([i for i in com.calcgame.main.buttons.getNeighbourCoords(this_button) if not com.calcgame.main.buttons.getButton(i).getString() == '='])
+    com.calcgame.main.buttons.setButton(this_coords, state.getButton('X'))
+    com.calcgame.main.buttons.setButton(target, this_button)
 
 def on_round_start():
     lol()

@@ -1,9 +1,10 @@
-package root.buttons;
+package com.calcgame.main.buttons;
 
 import org.python.core.PyComplex;
 import org.python.util.PythonInterpreter;
-import root.Action;
-import root.GameState;
+import com.calcgame.main.Action;
+import com.calcgame.main.ActionContext;
+import com.calcgame.main.GameState;
 
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -20,7 +21,7 @@ public class FuncButton implements CalcButton {
 
     @Override
     public void onClick(GameState state, Properties properties) {
-        if (action == null) throw new UnsupportedOperationException("This button was initialised without arguments, and is valid only for constructing buttons");
+        if (action == null) throw new UnsupportedOperationException("This button was initialised without arguments, and is valid only for constructing com.calcgame.main.buttons");
         if (properties.price != null) {
             if (state.getMoney().__cmp__(properties.price) == -1) return;
             state.subMoney(properties.price);
@@ -49,6 +50,11 @@ public class FuncButton implements CalcButton {
                 @Override
                 public boolean undoable(GameState state) {
                     return true;
+                }
+
+                @Override
+                public ActionContext getContext() {
+                    return new ActionContext(state, properties, properties.pos, properties.collection);
                 }
             }.andThen(action));
         }

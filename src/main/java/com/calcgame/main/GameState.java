@@ -1,11 +1,12 @@
-package root;
+package com.calcgame.main;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.python.core.PyComplex;
 import org.python.core.PyObject;
 import org.python.util.PythonInterpreter;
-import root.buttons.*;
+import com.calcgame.main.buttons.*;
 
 import java.awt.*;
 import java.io.File;
@@ -179,7 +180,8 @@ public class GameState {
             }
             if (!obj.isNull("buttons")) {
                 JSONObject button_config = obj.getJSONObject("buttons");
-                for (String button_type : button_config.keySet()) {
+                for (Iterator<String> it = button_config.keys(); it.hasNext(); ) {
+                    String button_type = it.next();
                     if (button_types.containsKey(button_type)) {
                         JSONArray arr = button_config.getJSONArray(button_type);
                         for (int i = 0; i < arr.length(); i++) {
@@ -197,7 +199,8 @@ public class GameState {
             }
             if (!obj.isNull("functions")) {
                 JSONObject funcs = obj.getJSONObject("functions");
-                for (String func_name : funcs.keySet()) {
+                for (Iterator<String> it = funcs.keys(); it.hasNext(); ) {
+                    String func_name = it.next();
                     String f_code = funcs.getString(func_name);
                     try (PythonInterpreter py = new PythonInterpreter()) {
                         try {
@@ -217,7 +220,7 @@ public class GameState {
                     }
                 }
             }
-        } catch (FileNotFoundException e) {
+        } catch (FileNotFoundException | JSONException e) {
             LOGGER.warning("Unable to load config from file (file not found): " + file.getName());
         }
     }
@@ -231,7 +234,7 @@ public class GameState {
                 JSONArray arr = obj.getJSONArray("starting_buttons");
                 arr.forEach((o) -> buttons.add(button_lookup.get((String) o), CalcButton.Properties.count(2.)));
             }
-        } catch (FileNotFoundException e) {
+        } catch (FileNotFoundException | JSONException e) {
             LOGGER.warning("Unable to load config from file (file not found): " + file.getName());
         }
     }
@@ -452,6 +455,11 @@ public class GameState {
         if (undo_stack.size() > cur_undo_stack_i + 1) undo_stack.removeLast();
         cur_undo_stack_i++;
         undo_stack.add(action);
+    }
+
+    public ActionContext getCurrentActionContext() {
+        if (undo_stack.isEmpty()) return null;
+        return undo_stack.get(cur_undo_stack_i).getContext();
     }
 
     public enum RenderType {
