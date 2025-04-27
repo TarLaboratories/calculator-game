@@ -187,4 +187,13 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         this.forEach((b) -> out.add(b.button));
         return out;
     }
+
+    public void setDimensions(Rectangle d) {
+        destroy();
+        x = d.x;
+        y = d.y;
+        width = d.width;
+        height = d.height;
+        forEach((button -> add(button.button, button.properties)));
+    }
 }

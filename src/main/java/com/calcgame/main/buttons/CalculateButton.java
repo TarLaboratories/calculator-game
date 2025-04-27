@@ -24,6 +24,7 @@ public class CalculateButton extends TextButton {
         protected @Nullable Operation op;
         protected @Nullable Function<PyComplex, PyComplex> f;
         protected @Nullable PyComplex constant;
+        protected @Nullable String variable;
         private int tmp_return_info = -1;
 
         protected Formula() {}
@@ -39,9 +40,16 @@ public class CalculateButton extends TextButton {
         }
 
         public PyComplex calc() throws InvalidFormulaException {
+            return calc(Map.of());
+        }
+
+        public PyComplex calc(Map<String, PyComplex> vars) throws InvalidFormulaException {
             if (constant != null) return constant;
-            else if (op != null && b != null) return op.f().apply(a.calc(), b.calc());
-            else if (f != null) return f.apply(a.calc());
+            else if (variable != null) {
+                if (vars.containsKey(variable)) return vars.get(variable);
+                else throw new InvalidFormulaException("Formula contains a reference to variable '%s', which is not defined".formatted(variable));
+            } else if (op != null && b != null) return op.f().apply(a.calc(vars), b.calc(vars));
+            else if (f != null) return f.apply(a.calc(vars));
             else throw new InvalidFormulaException("Formula does not contain an operation and second operand or unary function");
         }
 
@@ -54,6 +62,7 @@ public class CalculateButton extends TextButton {
 
         public String toString(GameState state) throws InvalidFormulaException {
             if (constant != null) return state.numToString(constant);
+            if (variable != null) return variable;
             if (f != null) return rev_funcs.get(f) + '(' + a.toString(state) + ')';
             if (op == null || b == null) throw new InvalidFormulaException("Formula does not contain an operation and second operand");
             return '(' + a.toString(state) + rev_ops.get(op) + b.toString(state) + ')';
@@ -104,6 +113,10 @@ public class CalculateButton extends TextButton {
                     last_op = tmp - 1;
                 } else if (c == ')') throw new InvalidFormulaException("Unexpected closing bracket at " + i);
                 else {
+                    if (!cur_func.isEmpty()) {
+                        cur.variable = cur_func.toString();
+                        cur_func = new StringBuilder();
+                    }
                     if (!ops.containsKey(Character.toString(c))) throw new InvalidFormulaException("Operation does not exist: " + c);
                     Operation op = ops.get(Character.toString(c));
                     if (op.priority <= prev_priority) {
@@ -113,7 +126,9 @@ public class CalculateButton extends TextButton {
                     if (cur.op == null) {
                         cur.a = new Formula();
                         cur.a.constant = cur.constant;
+                        cur.a.variable = cur.variable;
                         cur.constant = null;
+                        cur.variable = null;
                         cur.op = op;
                         last_op = i;
 

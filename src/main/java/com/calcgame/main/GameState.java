@@ -9,6 +9,8 @@ import org.python.util.PythonInterpreter;
 import com.calcgame.main.buttons.*;
 
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
@@ -48,6 +50,8 @@ public class GameState {
     protected List<Action> undo_stack = new ArrayList<>();
     protected int cur_undo_stack_i = -1;
     protected long seed;
+    protected boolean graph_enabled = false;
+    protected Canvas graph_cvs;
 
     public GameState() {
         seed = random.nextLong();
@@ -58,11 +62,12 @@ public class GameState {
         buttons.add(all_buttons.getLast(), CalcButton.Properties.count(1.).infinity());
         prepareCalculatorRender();
         nextRound();
-    }
-
-    @SuppressWarnings("CopyConstructorMissesField")
-    public GameState(GameState c) {
-
+        addGraphSpace();
+        try {
+            LOGGER.info(CalculateButton.Formula.fromString("x^2+2*x+1").toString());
+        } catch (CalculateButton.InvalidFormulaException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void prepareRender() {
@@ -71,6 +76,12 @@ public class GameState {
         window.setTitle("Calculator Game");
         window.setSize(600, 600);
         window.setLayout(null);
+        window.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                window.dispose();
+            }
+        });
         window.setVisible(true);
         overlay = new Panel();
         overlay.setLayout(null);
@@ -295,7 +306,7 @@ public class GameState {
 
     public Rectangle getShopDimensions() {
         return switch (renderType) {
-            case WINDOW -> new Rectangle(300, 50, 200, 600);
+            case WINDOW -> new Rectangle(window.getWidth() - 350, getCalculatorDimensions().y, 200, 600);
             case CONSOLE -> new Rectangle(8, 8);
         };
     }
@@ -460,6 +471,26 @@ public class GameState {
     public ActionContext getCurrentActionContext() {
         if (undo_stack.isEmpty()) return null;
         return undo_stack.get(cur_undo_stack_i).getContext();
+    }
+
+    public Rectangle getGraphDimensions() {
+        Rectangle d = getCalculatorDimensions();
+        return new Rectangle(d.x + d.width + getButtonPadding(), d.y, 100, d.height*2/3);
+    }
+
+    public void addGraphSpace() {
+        for (int i = 0; i < 20; i++) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException ignored) {}
+            window.setMinimumSize(new Dimension(100, 100));
+            window.setSize(window.getHeight(), window.getWidth() + getGraphDimensions().width/20);
+            if (inShop) shop.setDimensions(getShopDimensions());
+        }
+        graph_cvs = new Canvas();
+        graph_cvs.setBounds(getGraphDimensions());
+        window.add(graph_cvs);
+        graph_enabled = true;
     }
 
     public enum RenderType {
