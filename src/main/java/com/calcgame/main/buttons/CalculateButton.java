@@ -39,30 +39,35 @@ public class CalculateButton extends TextButton {
             this.constant = constant;
         }
 
+        public Formula(@Nullable String variable) {
+            this.variable = variable;
+        }
+
         public PyComplex calc() throws InvalidFormulaException {
             return calc(Map.of());
         }
 
         public PyComplex calc(Map<String, PyComplex> vars) throws InvalidFormulaException {
-            if (constant != null) return constant;
-            else if (variable != null) {
+            if (variable != null) {
                 if (vars.containsKey(variable)) return vars.get(variable);
                 else throw new InvalidFormulaException("Formula contains a reference to variable '%s', which is not defined".formatted(variable));
-            } else if (op != null && b != null) return op.f().apply(a.calc(vars), b.calc(vars));
+            } else if (constant != null) return constant;
+            else if (op != null && b != null) return op.f().apply(a.calc(vars), b.calc(vars));
             else if (f != null) return f.apply(a.calc(vars));
             else throw new InvalidFormulaException("Formula does not contain an operation and second operand or unary function");
         }
 
         public int countOperations() throws InvalidFormulaException {
             if (constant != null) return 0;
+            else if (variable != null) return 0;
             else if (op != null && b != null) return a.countOperations() + 1 + b.countOperations();
             else if (f != null) return 1 + a.countOperations();
             else throw new InvalidFormulaException("Formula does not contain an operation and second operand or unary function");
         }
 
         public String toString(GameState state) throws InvalidFormulaException {
-            if (constant != null) return state.numToString(constant);
             if (variable != null) return variable;
+            if (constant != null) return state.numToString(constant);
             if (f != null) return rev_funcs.get(f) + '(' + a.toString(state) + ')';
             if (op == null || b == null) throw new InvalidFormulaException("Formula does not contain an operation and second operand");
             return '(' + a.toString(state) + rev_ops.get(op) + b.toString(state) + ')';
@@ -153,6 +158,8 @@ public class CalculateButton extends TextButton {
                 }
             }
             cur.tmp_return_info = end;
+            if (!cur_func.isEmpty() && cur.op != null) cur.b = new Formula(cur_func.toString());
+            else if (!cur_func.isEmpty()) cur.variable = cur_func.toString();
             return cur;
         }
 
