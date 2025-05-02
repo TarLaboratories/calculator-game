@@ -16,7 +16,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.PrintStream;
 import java.util.*;
 import java.util.List;
 
@@ -45,7 +44,6 @@ public class GameState {
     protected ButtonCollection shop;
     protected long current_round = 0;
     protected RenderType renderType;
-    public final PrintStream out = System.out;
     protected Frame window;
     protected Panel overlay;
     protected Label calc_screen, goal_label, money_label;
@@ -56,6 +54,9 @@ public class GameState {
     protected int cur_undo_stack_i = -1;
     protected long seed;
 
+    /**
+     * Constructs a new GameState and starts the game.
+     */
     public GameState() {
         LOGGER.info("Creating a new game state");
         seed = random.nextLong();
@@ -67,6 +68,9 @@ public class GameState {
         nextRound();
     }
 
+    /**
+     * Adds vital buttons to the game (e.g. '=', 'UNDO', 'REDO', 'Reroll', etc.)
+     */
     public void addSystemButtons() {
         all_buttons.add(new CalculateButton());
         buttons.add(all_buttons.getLast(), Properties.count(1.).infinity());
@@ -81,6 +85,9 @@ public class GameState {
         buttons.add(redo_button, Properties.count(1).infinity());
     }
 
+    /**
+     * Prepares the window for rendering, creating all necessary frame and label objects
+     */
     public void prepareRender() {
         renderType = RenderType.WINDOW;
         window = new Frame();
@@ -114,6 +121,9 @@ public class GameState {
         buttons = new ButtonCollection(getCalculatorDimensions(), this);
     }
 
+    /**
+     * Loads all mods from the mod folder (./mods), and starting buttons from them
+     */
     public void loadMods() {
         LOGGER.info("Loading mods...");
         File mods = new File("mods");
@@ -144,6 +154,9 @@ public class GameState {
         }
     }
 
+    /**
+     * Prepares the calculator for rendering by creating all necessary label objects
+     */
     public void prepareCalculatorRender() {
         calc_screen = new Label();
         Rectangle pos = getScreenDimensions();
@@ -167,6 +180,11 @@ public class GameState {
         window.add(money_label);
     }
 
+    /**
+     * Loads all mod configuration, except starting buttons, from a file
+     * @param file the file to load from
+     * @param mod_id the id of the mod that supplied the file
+     */
     public void loadConfig(File file, String mod_id) {
         LOGGER.info("Loading config file from mod '{}'", mod_id);
         try {
@@ -247,6 +265,11 @@ public class GameState {
         }
     }
 
+    /**
+     * Loads the starting buttons from a mod config file
+     * @param file the file to load from
+     * @param mod_id the mod id of the mod that supplied this file
+     */
     public void loadStartingButtons(File file, String mod_id) {
         try {
             LOGGER.info("Loading starting buttons from mod '{}'", mod_id);
@@ -263,6 +286,10 @@ public class GameState {
         }
     }
 
+    /**
+     * Refreshes the shop, or creates it if it didn't exist.
+     * Appends the (undoable) refresh action to the last action (being) executed.
+     */
     public void refreshShop() {
         JSONObject old_shop;
         if (shop != null) {
@@ -306,6 +333,10 @@ public class GameState {
 
     }
 
+    /**
+     * Starts the next round, closing the shop and increasing the round counter.
+     * Generates one action, that is not undoable
+     */
     public void nextRound() {
         inShop = false;
         setGoal(new PyComplex(random.nextInt(100)));
@@ -313,8 +344,13 @@ public class GameState {
         if (shop != null) shop.destroy();
         current_round++;
         on_round_start.forEach((_, f) -> f.run());
+        doAction(Action.forFunction(() -> {}));
     }
 
+    /**
+     * Ends the current round, and displays the shop.
+     * Generates one action, that is not undoable.
+     */
     public void endRound() {
         LOGGER.info("Round #{} ended", current_round);
         appendToLastAction(Action.forFunction(() -> {})); //block undo further than round end
@@ -324,26 +360,44 @@ public class GameState {
         refreshShop();
     }
 
+    /**
+     * Adds the specified amount to the player's money
+     */
     public void addMoney(int x) {
         addMoney((double) x);
     }
 
+    /**
+     * Adds the specified amount to the player's money
+     */
     public void addMoney(Double x) {
         setMoney(new PyComplex(getMoney().real + x, getMoney().imag));
     }
 
+    /**
+     * Adds the specified amount to the player's money
+     */
     public void addMoney(PyComplex x) {
         setMoney(getMoney().__add__(x).__complex__());
     }
 
+    /**
+     * @return a random, currently sellable button
+     */
     public CalcButton getRandomButton() {
         return sellable_buttons.get(randint(0, sellable_buttons.size()));
     }
 
+    /**
+     * @return the price of this button, if it were in the shop
+     */
     public PyComplex getPrice(CalcButton button) {
         return button.getPrice(this);
     }
 
+    /**
+     * @return the distance between buttons
+     */
     public int getButtonPadding() {
         return switch (renderType) {
             case WINDOW -> 10;
@@ -351,6 +405,9 @@ public class GameState {
         };
     }
 
+    /**
+     * @return the bounds of the shop
+     */
     public Rectangle getShopDimensions() {
         return switch (renderType) {
             case WINDOW -> new Rectangle(window.getWidth() - 350, getCalculatorDimensions().y, 200, 600);
@@ -358,6 +415,9 @@ public class GameState {
         };
     }
 
+    /**
+     * @return the bounds of the calculator
+     */
     public Rectangle getCalculatorDimensions() {
         return switch (renderType) {
             case WINDOW -> new Rectangle(0, window.getInsets().top + 20, 300, 600);
@@ -365,6 +425,9 @@ public class GameState {
         };
     }
 
+    /**
+     * @return the bounds of the calculator screen
+     */
     public Rectangle getScreenDimensions() {
         return switch (renderType) {
             case WINDOW -> new Rectangle(0, window.getInsets().top, buttons.getWidth(), 20);
@@ -372,10 +435,17 @@ public class GameState {
         };
     }
 
+    /**
+     * @return the string currently displayed on the calculator screen
+     */
     public String getScreen() {
         return screen;
     }
 
+    /**
+     * Sets the string on the calculator screen to the specified string
+     * @param s the string to display, does not have to be a valid mathematical expression
+     */
     public void setScreen(String s) {
         if (s.startsWith("0") && s.length() > 1) s = s.substring(1);
         if (s.endsWith("+0j)") && s.startsWith("(")) s = s.substring(1, s.length() - 4);
@@ -386,24 +456,39 @@ public class GameState {
         } catch (NumberFormatException ignored) {}
     }
 
+    /**
+     * Sets the amount of money the player has
+     */
     public void setMoney(PyComplex money) {
         this.money = money;
         money_label.setText("$" + numToString(money));
     }
 
+    /**
+     * @return the amount of money the player currently has
+     */
     public PyComplex getMoney() {
         return money;
     }
 
+    /**
+     * Set the number, that the player is required to reach to end this round
+     */
     public void setGoal(PyComplex goal) {
         this.goal = goal;
         goal_label.setText("Goal: %s".formatted(numToString(goal)));
     }
 
+    /**
+     * Reduce the player's money by the specified amount
+     */
     public void subMoney(PyComplex price) {
         this.setMoney(this.getMoney().__sub__(price).__complex__());
     }
 
+    /**
+     * @return A human-readable string representing this number. This should be preferred over {@link PyComplex#toString()}
+     */
     public String numToString(PyComplex x) {
         if (x.real == 0 && x.imag == 0) return "0";
         if (x.__cmp__(PyComplex.Inf) == 0) return "Infinity";
@@ -412,38 +497,65 @@ public class GameState {
         return tmp;
     }
 
+    /**
+     * @return the number that the player is required to reach to end this round
+     */
     public PyComplex getGoal() {
         return goal;
     }
 
+    /**
+     * @return the {@link RenderType} currently used
+     */
     public RenderType getRenderType() {
         return renderType;
     }
 
+    /**
+     * @return a {@link ButtonCollection} of buttons currently on the calculator
+     */
     public ButtonCollection getCurrentButtons() {
         return buttons;
     }
 
+    /**
+     * @return a list of all buttons registered
+     */
     public List<CalcButton> getAllButtons() {
         return all_buttons;
     }
 
+    /**
+     * @return the Frame object, inside which everything is rendered
+     */
     public Frame getWindow() {
         return window;
     }
 
+    /**
+     * @return the list of buttons that can appear in the shop
+     */
     public List<CalcButton> getSellableButtons() {
         return sellable_buttons;
     }
 
+    /**
+     * @return a button that was registered under the specified name
+     */
     public CalcButton getButton(String name) {
         return button_lookup.get(name);
     }
 
+    /**
+     * Returns a random element from the specified list.
+     */
     public Object randomChoice(List<Object> in) {
-        return in.get(random.nextInt(in.size()));
+        return in.get(randint(0, in.size()));
     }
 
+    /**
+     * Returns a random number between {@code min} (inclusive) and {@code max} (exclusive)
+     */
     public int randint(int min, int max) {
         if (cur_random_i == random_sequence.size()) {
             random_sequence.add(random.nextInt(min, max));
@@ -455,18 +567,35 @@ public class GameState {
         }
     }
 
+    /**
+     * Registers a Python function to be executed at start of round.
+     * @param id The id to register the function under. It's only effect is to be used in {@link GameState#removeOnRoundStart(String)} later.
+     * @param f The Python function to register. Must be a callable python object.
+     */
     public void onRoundStart(String id, PyObject f) {
         on_round_start.put(id, f::__call__);
     }
 
+    /**
+     * Removes the function that was previously registered using {@link GameState#onRoundStart(String, PyObject)}
+     * @param id the id of the function to remove
+     */
     public void removeOnRoundStart(String id) {
         on_round_start.remove(id);
     }
 
+    /**
+     * Has a {@code a/b} chance to return {@code true}. Uses {@link GameState#randint(int, int)}
+     */
     public boolean chance(int a, int b) {
         return this.randint(0, b) < a;
     }
 
+    /**
+     * Renders a tooltip with the specified contents at the specified position
+     * @param text The contents of the tooltip to render. Will be line-wrapped to fit into the specified bounds.
+     * @param bounds the position and size of the tooltip to render
+     */
     public void setTooltip(String text, Rectangle bounds) {
         FontMetrics m = tooltip_labels.getFirst().getFontMetrics(tooltip_labels.getFirst().getFont());
         StringBuilder tmp_line = new StringBuilder();
@@ -496,11 +625,18 @@ public class GameState {
         tooltip_bg.setVisible(true);
     }
 
+    /**
+     * Removes any tooltip currently rendered
+     */
     public void removeTooltip() {
         tooltip_bg.setVisible(false);
         tooltip_labels.forEach((l) -> l.setVisible(false));
     }
 
+    /**
+     * Invokes {@link Action#undo()} of the action currently selected in the undo stack, and moves the selection
+     * to the previous action.
+     */
     public void undo() {
         if (cur_undo_stack_i >= 0 && undo_stack.get(cur_undo_stack_i).undoable()) {
             undo_stack.get(cur_undo_stack_i).undo();
@@ -509,6 +645,9 @@ public class GameState {
         else LOGGER.debug("Cannot undo action, as it is marked as not undoable");
     }
 
+    /**
+     * Moves the selection to the next action in the undo stack, and invokes {@link Action#redo()} of the newly selected action.
+     */
     public void redo() {
         if (cur_undo_stack_i + 1 < undo_stack.size()) {
             cur_undo_stack_i++;
@@ -516,6 +655,11 @@ public class GameState {
         }
     }
 
+    /**
+     * Appends the specified action to the undo stack (at the position after the currently selected action), then executes it. Also appends a
+     * reset of this {@code GameState} random state (to it's state before the action is executed) to the undo function
+     * @param action the action to execute and save to the undo stack
+     */
     public void doAction(Action action) {
         LOGGER.trace("Doing action");
         int old_random_i = cur_random_i;
@@ -531,16 +675,31 @@ public class GameState {
         LOGGER.debug("Random changed: {} -> {}", old_random_i, cur_random_i);
     }
 
+    /**
+     * Appends the specified {@code Action} to the last action executed (or currently being executed)
+     * by the means of {@link Action#andThen(Action)}. It will not be executed, unless it is undone and then redone.
+     * The returned action is safe to {@link Action#redo()} without invoking {@link GameState#doAction(Action)}
+     * @param action the {@code Action} to append
+     * @return the input action
+     */
     public Action appendToLastAction(Action action) {
         if (undo_stack.isEmpty()) return action;
         undo_stack.set(cur_undo_stack_i, undo_stack.get(cur_undo_stack_i).andThen(action));
         return action;
     }
 
+    /**
+     * When {@link GameState#doAction(Action)} is invoked next time, the specified {@code Action}
+     * will be appended to the {@code doAction parameter} (by the means of {@link Action#andThen(Action)}), before it is executed.
+     * @param action the {@code Action} to append
+     */
     public void appendToNextAction(Action action) {
         temp_action = temp_action.andThen(action);
     }
 
+    /**
+     * @return the context of the last executed {@code Action}
+     */
     public ActionContext getCurrentActionContext() {
         if (undo_stack.isEmpty()) return null;
         return undo_stack.get(cur_undo_stack_i).getContext();

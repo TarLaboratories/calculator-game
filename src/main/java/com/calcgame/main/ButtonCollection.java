@@ -13,6 +13,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * A collection of rendered buttons, that have count, price and other properties
+ */
 public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
     protected int width, height, x, y, cur_height, max_width;
     protected HashMap<Coordinate, Button> buttons_by_coords = new HashMap<>();
@@ -22,6 +25,11 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         super();
     }
 
+    /**
+     * Constructs a new collection
+     * @param rectangle the bounds of the rendered collection
+     * @param state the current game state
+     */
     public ButtonCollection(Rectangle rectangle, GameState state) {
         super();
         this.width = rectangle.width;
@@ -36,6 +44,9 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         Properties properties;
     }
 
+    /**
+     * Represents the coordinates of a rendered button, relative to the first button in a {@code ButtonCollection}
+     */
     public static class Coordinate {
         public int x, y;
 
@@ -89,20 +100,32 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         }
     }
 
+    /**
+     * (Re)renders all buttons in this collection.
+     */
     public void render() {
         this.forEach((button) -> button.button.render(state, button.properties));
     }
 
+    /**
+     * (Re)renders only the button at the specified coordinates.
+     */
     public void render(Coordinate coords) {
         if (!buttons_by_coords.containsKey(coords)) throw new UnsupportedOperationException("Cannot render a button at a non-initialized position");
         buttons_by_coords.get(coords).button.render(state, buttons_by_coords.get(coords).properties);
     }
 
+    /**
+     * Erases all buttons in this collection, does NOT actually destroy or remove anything.
+     */
     public void destroy() {
         this.forEach((button) -> button.button.destroy(state, button.properties));
         this.max_width = 0;
     }
 
+    /**
+     * Adds a button to this collection, regardless of whether it already exists in it or not
+     */
     public void add(CalcButton button, Properties properties) {
         Button tmp_button = new Button();
         tmp_button.button = button;
@@ -138,10 +161,16 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         this.add(tmp_button);
     }
 
+    /**
+     * Adds 1 to the count of the specified button if it already exists, or adds it if not.
+     */
     public void add(CalcButton button) {
         add(button, new PyComplex(1));
     }
 
+    /**
+     * Adds {@code count} to the count of the specified button if it already exists, or adds it if not.
+     */
     public void add(CalcButton button, PyComplex count) {
         for (Button b : this) {
             if (b.button == button) {
@@ -156,14 +185,23 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         add(button, Properties.count(count));
     }
 
+    /**
+     * Equivalent to {@link ButtonCollection#add(CalcButton, PyComplex)}. It is here mainly to avoid conflicts with the inherited {@code add} method and for mods
+     */
     public void addCount(CalcButton button, PyComplex count) {
         this.add(button, count);
     }
 
+    /**
+     * @return the width, supplied in the constructor
+     */
     public int getWidth() {
         return max_width;
     }
 
+    /**
+     * @return the coordinates of any button that is equal to the specified button.
+     */
     public Coordinate getCoords(CalcButton button) {
         for (Coordinate i : buttons_by_coords.keySet()) {
             if (buttons_by_coords.get(i).button == button) return i;
@@ -171,17 +209,26 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         throw new IndexOutOfBoundsException("The requested button doesn't exist in this collection");
     }
 
+    /**
+     * @return the button at the specified coordinates, or {@code null} if there is nothing at these coordinates
+     */
     public CalcButton getButton(Coordinate coords) {
         if (buttons_by_coords.get(coords) == null) return null;
         return buttons_by_coords.get(coords).button;
     }
 
+    /**
+     * Sets the button at the specified coordinates to the provided one, and keeps the properties of the old button.
+     */
     public void setButton(Coordinate coords, CalcButton button) {
         if (getButton(coords) == null) throw new UnsupportedOperationException("Cannot set a button at a non-initialized position");
         buttons_by_coords.get(coords).button = button;
         button.render(state, buttons_by_coords.get(coords).properties);
     }
 
+    /**
+     * @return all neighbouring coordinates, where a button exists.
+     */
     public List<Coordinate> getNeighbourCoords(Coordinate coords) {
         ArrayList<Coordinate> out = new ArrayList<>();
         if (getButton(coords.left()) != null) out.add(coords.left());
@@ -191,12 +238,18 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         return out;
     }
 
+    /**
+     * @return a list of all buttons in this collection
+     */
     public List<CalcButton> getButtons() {
         ArrayList<CalcButton> out = new ArrayList<>();
         this.forEach((b) -> out.add(b.button));
         return out;
     }
 
+    /**
+     * Sets the bounds of this rendered collection, and rerenders it
+     */
     public void setDimensions(Rectangle d) {
         destroy();
         x = d.x;
@@ -206,6 +259,9 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         forEach((button -> add(button.button, button.properties)));
     }
 
+    /**
+     * Serialises this object.
+     */
     public JSONObject toJSON() {
         JSONObject out = new JSONObject();
         out.put("width", width);
@@ -220,6 +276,10 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         return out;
     }
 
+    /**
+     * Deserializes this object
+     * @param state the current game state for button lookup
+     */
     public static ButtonCollection fromJSON(JSONObject o, GameState state) {
         ButtonCollection out = new ButtonCollection();
         out.state = state;
@@ -231,7 +291,7 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         out.max_width = o.getInt("max_width");
         o.getJSONArray("buttons").forEach((_o) -> {
             if (_o instanceof JSONObject obj) {
-                out.add(state.button_lookup.get(obj.getString("button")), Properties.fromJSON(obj.getJSONObject("properties")));
+                out.add(state.getButton(obj.getString("button")), Properties.fromJSON(obj.getJSONObject("properties")));
             }
         });
         return out;
