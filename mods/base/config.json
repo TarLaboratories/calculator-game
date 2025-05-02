@@ -51,16 +51,16 @@
       ["log2", "Binary logarithm (2 ^ lg(a) = a). Counts as a function (arguments are required to be in brackets)"],
       ["abs", "Absolute value (abs(a) = -a if a is less than 0, abs(a) = a otherwise). Counts as a function (arguments are required to be in brackets)"]],
     "func": [
-      ["AC", "state.setScreen('0')", "Sets current number to 0. Not undoable."],
-      ["DEL", "state.setScreen(state.getScreen()[:-1])", "Removes the last symbol on the calculator screen. Not undoable."],
+      ["AC", "state.setScreen('0')", "Sets current number to 0.", "state.setScreen(ctx.screen())"],
+      ["DEL", "state.setScreen(state.getScreen()[:-1])", "Removes the last symbol on the calculator screen.", "state.setScreen(ctx.screen())"],
       ["RAND", "state.setScreen(str(state.randint(0, 100)))", "Sets the current number to a random number between 0 and 99 (inclusive). Not undoable."],
       ["++", "state.setScreen(str(complex(state.getScreen()) + 1))", "Adds 1 to the current number", "state.setScreen(str(complex(state.getScreen()) - 1))"],
       ["--", "state.setScreen(str(complex(state.getScreen()) - 1))", "Reduces the current number by 1", "state.setScreen(str(complex(state.getScreen()) + 1))"],
-      ["NICE", "state.setScreen(state.getScreen() + '69')", "Sets the current number to 69. Not undoable."],
-      [":)", "state.setScreen(state.getGoal() - 1)", "Sets the current number to (goal - 1). Not undoable."],
+      ["NICE", "state.setScreen(state.getScreen() + '69')", "Sets the current number to 69.", "state.setScreen(ctx.screen())"],
+      [":)", "state.setScreen(state.getGoal() - 1)", "Sets the current number to (goal - 1).", "state.setScreen(ctx.screen())"],
       ["X", "pass", "Does nothing?", "pass"],
-      [">:)", "button-walker.py", "When clicked, changes it's position to a neighbouring button and sets the old button to 'X' (does nothing?). At start of round (if was clicked before) gives $4 and has the same effect as clicking (does not reduce count). Not undoable."],
-      ["ROUND", "state.setScreen(round(complex(state.getScreen())))", "Rounds the current number to the nearest integer. Not undoable."],
+      [">:)", "button-walker.py", "When clicked, changes it's position to a neighbouring button and sets the old button to 'X' (does nothing?). At start of round gives $4 and has the same effect as clicking (does not reduce count). Has a 1 in 2 chance to get destroyed when clicked. Not undoable."],
+      ["ROUND", "state.setScreen(str(round(complex(state.getScreen()).real)+round(complex(state.getScreen()).imag)*1j))", "Rounds the current number to the nearest integer.", "state.setScreen(ctx.screen())"],
       ["WOF", "wheel.py", "Has a 1 in 4 chance to add 2 to the count of all buttons currently on the calculator. Not undoable."]
     ]
   },

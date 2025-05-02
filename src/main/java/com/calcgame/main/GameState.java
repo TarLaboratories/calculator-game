@@ -1,5 +1,8 @@
 package com.calcgame.main;
 
+import com.calcgame.main.buttons.Properties;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,11 +19,12 @@ import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.*;
 import java.util.List;
-import java.util.logging.Logger;
 
 public class GameState {
-    public static final Logger LOGGER = Logger.getLogger("GameState");
+    private static final Logger LOGGER = LogManager.getLogger();
     protected Random random = new Random();
+    protected List<Integer> random_sequence = new ArrayList<>();
+    protected int cur_random_i = 0;
     protected Map<String, CalcButton> button_types = Map.of("text", new TextButton(), "func", new FuncButton());
     protected Map<String, Map<String, String>> mod_files = new HashMap<>();
     protected Map<String, Runnable> on_round_start = new HashMap<>();
@@ -48,18 +52,33 @@ public class GameState {
     protected List<Label> tooltip_labels;
     protected Panel tooltip_bg;
     protected List<Action> undo_stack = new ArrayList<>();
+    protected Action temp_action = Action.forUndo(() -> {});
     protected int cur_undo_stack_i = -1;
     protected long seed;
 
     public GameState() {
+        LOGGER.info("Creating a new game state");
         seed = random.nextLong();
         random.setSeed(seed);
         prepareRender();
         loadMods();
-        all_buttons.add(new CalculateButton());
-        buttons.add(all_buttons.getLast(), CalcButton.Properties.count(1.).infinity());
+        addSystemButtons();
         prepareCalculatorRender();
         nextRound();
+    }
+
+    public void addSystemButtons() {
+        all_buttons.add(new CalculateButton());
+        buttons.add(all_buttons.getLast(), Properties.count(1.).infinity());
+        button_lookup.put("=", all_buttons.getLast());
+        reroll_button = new ShopRerollButton();
+        next_round_button = new NextRoundButton();
+        button_lookup.put(reroll_button.getString(), reroll_button);
+        button_lookup.put(next_round_button.getString(), next_round_button);
+        undo_button = new UndoButton();
+        redo_button = new RedoButton();
+        buttons.add(undo_button, Properties.count(1).infinity());
+        buttons.add(redo_button, Properties.count(1).infinity());
     }
 
     public void prepareRender() {
@@ -71,6 +90,7 @@ public class GameState {
         window.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                LOGGER.info("Exiting...");
                 window.dispose();
             }
         });
@@ -80,7 +100,7 @@ public class GameState {
         overlay.setSize(600, 600);
         overlay.setVisible(false);
         tooltip_labels = new ArrayList<>();
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 64; i++) {
             Label tooltip_label = new Label();
             tooltip_label.setBackground(Color.GRAY);
             tooltip_label.setVisible(false);
@@ -95,15 +115,18 @@ public class GameState {
     }
 
     public void loadMods() {
+        LOGGER.info("Loading mods...");
         File mods = new File("mods");
-        if (!mods.isDirectory()) LOGGER.warning("Invalid mods directory (%s)!".formatted(mods.getAbsolutePath()));
+        if (!mods.isDirectory()) LOGGER.warn("Invalid mods directory ({})!", mods.getAbsolutePath());
         String[] mod_list = mods.list();
         if (mod_list != null) {
             for (String mod_id : mod_list) {
+                LOGGER.info("Loading mod '{}'", mod_id);
                 File mod_folder = new File(mods, mod_id);
                 mod_files.put(mod_id, new HashMap<>());
                 for (File file : Objects.requireNonNull(mod_folder.listFiles())) {
                     try {
+                        LOGGER.info("Loading file '{}' from mod '{}'", file.getName(), mod_id);
                         Scanner scanner = new Scanner(file);
                         mod_files.get(mod_id).put(file.getName(), scanner.useDelimiter("$").next());
                     } catch (FileNotFoundException ignored) {}
@@ -116,34 +139,28 @@ public class GameState {
             for (String mod_id : mod_list) {
                 File mod_folder = new File(mods, mod_id);
                 File config = new File(mod_folder, "config.json");
-                if (config.exists() && config.isFile()) loadStartingButtons(config);
+                if (config.exists() && config.isFile()) loadStartingButtons(config, mod_id);
             }
         }
     }
 
     public void prepareCalculatorRender() {
-        reroll_button = new ShopRerollButton();
-        next_round_button = new NextRoundButton();
-        undo_button = new UndoButton();
-        redo_button = new RedoButton();
-        buttons.add(undo_button, CalcButton.Properties.count(1).infinity());
-        buttons.add(redo_button, CalcButton.Properties.count(1).infinity());
         calc_screen = new Label();
-        Rectangle screen_pos = getScreenDimensions();
-        screen_pos.x = (int) Math.round(screen_pos.getCenterX());
-        screen_pos.width = screen_pos.width/2;
-        calc_screen.setBounds(screen_pos);
+        Rectangle pos = getScreenDimensions();
+        pos.x = (int) Math.round(pos.getCenterX());
+        pos.width = pos.width/2;
+        calc_screen.setBounds(pos);
         calc_screen.setAlignment(Label.RIGHT);
         goal_label = new Label();
-        screen_pos = getScreenDimensions();
-        screen_pos.width = screen_pos.width/2;
-        screen_pos.x = getButtonPadding();
-        goal_label.setBounds(screen_pos);
+        pos = getScreenDimensions();
+        pos.width = pos.width/2;
+        pos.x = getButtonPadding();
+        goal_label.setBounds(pos);
         goal_label.setAlignment(Label.LEFT);
         money_label = new Label("$" + numToString(money));
-        screen_pos = getScreenDimensions();
-        screen_pos.x = getShopDimensions().x;
-        money_label.setBounds(screen_pos);
+        pos = getScreenDimensions();
+        pos.x = getShopDimensions().x;
+        money_label.setBounds(pos);
         window.add(overlay);
         window.add(calc_screen);
         window.add(goal_label);
@@ -151,6 +168,7 @@ public class GameState {
     }
 
     public void loadConfig(File file, String mod_id) {
+        LOGGER.info("Loading config file from mod '{}'", mod_id);
         try {
             Scanner scanner = new Scanner(file);
             String s = scanner.useDelimiter("$").next();
@@ -197,7 +215,7 @@ public class GameState {
                                 all_buttons.add(button_types.get(button_type).newButton(str_args));
                             } else all_buttons.add(button_types.get(button_type).newButton(List.of(arr.getString(i))));
                         }
-                    } else LOGGER.warning("Unknown button type: %s".formatted(button_type));
+                    } else LOGGER.warn("Unknown button type: {}", button_type);
                 }
             }
             if (!obj.isNull("functions")) {
@@ -223,38 +241,69 @@ public class GameState {
                     }
                 }
             }
+            LOGGER.info("Loading mod '{}' completed", mod_id);
         } catch (FileNotFoundException | JSONException e) {
-            LOGGER.warning("Unable to load config from file (file not found): " + file.getName());
+            LOGGER.warn("Unable to load mod config from file '{}': {}", file.getName(), e);
         }
     }
 
-    public void loadStartingButtons(File file) {
+    public void loadStartingButtons(File file, String mod_id) {
         try {
+            LOGGER.info("Loading starting buttons from mod '{}'", mod_id);
             Scanner scanner = new Scanner(file);
             String s = scanner.useDelimiter("$").next();
             JSONObject obj = new JSONObject(s);
             if (!obj.isNull("starting_buttons")) {
                 JSONArray arr = obj.getJSONArray("starting_buttons");
-                arr.forEach((o) -> buttons.add(button_lookup.get((String) o), CalcButton.Properties.count(2.)));
+                arr.forEach((o) -> buttons.add(button_lookup.get((String) o), Properties.count(2.)));
             }
+            LOGGER.info("Loading starting buttons from mod '{}' completed", mod_id);
         } catch (FileNotFoundException | JSONException e) {
-            LOGGER.warning("Unable to load config from file (file not found): " + file.getName());
+            LOGGER.warn("Unable to load starting buttons from mod config file '{}': {}", file.getName(), e);
         }
     }
 
     public void refreshShop() {
-        if (shop != null) shop.destroy();
-        shop = new ButtonCollection(getShopDimensions(), this);
-        for (int i = 0; i < shop_slots; i++) {
-            CalcButton button = getRandomButton();
-            shop.add(button, CalcButton.Properties.price(getPrice(button)));
+        JSONObject old_shop;
+        if (shop != null) {
+            old_shop = shop.toJSON();
+            shop.destroy();
+        } else {
+            old_shop = null;
         }
-        for (int i = 0; i < infinity_shop_slots; i++) {
-            CalcButton button = getRandomButton();
-            shop.add(button, CalcButton.Properties.price(getPrice(button).__mul__(new PyComplex(5.)).__complex__()).infinity());
-        }
-        shop.add(reroll_button, CalcButton.Properties.price(1.));
-        shop.add(next_round_button, CalcButton.Properties.price(0.));
+        appendToLastAction(new Action() {
+            @Override
+            public void redo() {
+                LOGGER.info("Refreshing shop");
+                shop = new ButtonCollection(getShopDimensions(), GameState.this);
+                for (int i = 0; i < shop_slots; i++) {
+                    CalcButton button = getRandomButton();
+                    shop.add(button, Properties.price(getPrice(button)));
+                }
+                for (int i = 0; i < infinity_shop_slots; i++) {
+                    CalcButton button = getRandomButton();
+                    shop.add(button, Properties.price(getPrice(button).__mul__(new PyComplex(5.)).__complex__()).infinity());
+                }
+                shop.add(reroll_button, Properties.price(1.));
+                shop.add(next_round_button, Properties.price(0.));
+            }
+
+            @Override
+            public void undo() {
+                LOGGER.info("Unrefreshing shop");
+                if (shop != null) shop.destroy();
+                if (old_shop != null) {
+                    shop = ButtonCollection.fromJSON(old_shop, GameState.this);
+                    shop.render();
+                }
+            }
+
+            @Override
+            public boolean undoable() {
+                return true;
+            }
+        }).redo();
+
     }
 
     public void nextRound() {
@@ -263,10 +312,12 @@ public class GameState {
         setScreen(Integer.toString(random.nextInt(100)));
         if (shop != null) shop.destroy();
         current_round++;
-        on_round_start.forEach((id, f) -> f.run());
+        on_round_start.forEach((_, f) -> f.run());
     }
 
     public void endRound() {
+        LOGGER.info("Round #{} ended", current_round);
+        appendToLastAction(Action.forFunction(() -> {})); //block undo further than round end
         inShop = true;
         addMoney(Math.min(((int) getMoney().real)/5, 5));
         addMoney(1.);
@@ -281,8 +332,12 @@ public class GameState {
         setMoney(new PyComplex(getMoney().real + x, getMoney().imag));
     }
 
+    public void addMoney(PyComplex x) {
+        setMoney(getMoney().__add__(x).__complex__());
+    }
+
     public CalcButton getRandomButton() {
-        return sellable_buttons.get(random.nextInt(sellable_buttons.size()));
+        return sellable_buttons.get(randint(0, sellable_buttons.size()));
     }
 
     public PyComplex getPrice(CalcButton button) {
@@ -390,7 +445,14 @@ public class GameState {
     }
 
     public int randint(int min, int max) {
-        return random.nextInt(min, max);
+        if (cur_random_i == random_sequence.size()) {
+            random_sequence.add(random.nextInt(min, max));
+            cur_random_i++;
+            return random_sequence.getLast();
+        } else {
+            cur_random_i++;
+            return random_sequence.get(cur_random_i - 1);
+        }
     }
 
     public void onRoundStart(String id, PyObject f) {
@@ -440,24 +502,43 @@ public class GameState {
     }
 
     public void undo() {
-        if (cur_undo_stack_i >= 0 && undo_stack.get(cur_undo_stack_i).undoable(this)) {
-            undo_stack.get(cur_undo_stack_i).undo(this);
+        if (cur_undo_stack_i >= 0 && undo_stack.get(cur_undo_stack_i).undoable()) {
+            undo_stack.get(cur_undo_stack_i).undo();
             cur_undo_stack_i--;
-        }
+        } else if (cur_undo_stack_i == -1) LOGGER.debug("Cannot undo action, as there is nothing left to undo");
+        else LOGGER.debug("Cannot undo action, as it is marked as not undoable");
     }
 
     public void redo() {
         if (cur_undo_stack_i + 1 < undo_stack.size()) {
             cur_undo_stack_i++;
-            undo_stack.get(cur_undo_stack_i).redo(this);
+            undo_stack.get(cur_undo_stack_i).redo();
         }
     }
 
     public void doAction(Action action) {
-        action.redo(this);
+        LOGGER.trace("Doing action");
+        int old_random_i = cur_random_i;
+        action = action.andThen(temp_action).andThen(Action.forUndo(() -> {
+            LOGGER.debug("Undoing changes to random: {} -> {}", cur_random_i, old_random_i);
+            cur_random_i = old_random_i;
+        }));
+        temp_action = Action.forUndo(() -> {});
         if (undo_stack.size() > cur_undo_stack_i + 1) undo_stack.removeLast();
         cur_undo_stack_i++;
         undo_stack.add(action);
+        action.redo();
+        LOGGER.debug("Random changed: {} -> {}", old_random_i, cur_random_i);
+    }
+
+    public Action appendToLastAction(Action action) {
+        if (undo_stack.isEmpty()) return action;
+        undo_stack.set(cur_undo_stack_i, undo_stack.get(cur_undo_stack_i).andThen(action));
+        return action;
+    }
+
+    public void appendToNextAction(Action action) {
+        temp_action = temp_action.andThen(action);
     }
 
     public ActionContext getCurrentActionContext() {

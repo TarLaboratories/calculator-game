@@ -1,16 +1,17 @@
 package com.calcgame.main.buttons;
 
+import com.calcgame.main.Action;
 import com.calcgame.main.GameState;
 
-public class NextRoundButton extends TextButton {
+public class NextRoundButton extends FuncButton {
     public NextRoundButton() {
-        super();
+        super("Next Round");
         text = "Next Round";
     }
 
     @Override
     public void onClick(GameState state, Properties properties) {
-        state.nextRound();
+        state.doAction(Action.forFunction(state::nextRound));
     }
 
     @Override
@@ -24,5 +25,10 @@ public class NextRoundButton extends TextButton {
     @Override
     public int getWidth(GameState state, Properties properties) {
         return 100 + state.getButtonPadding();
+    }
+
+    @Override
+    public boolean isVital() {
+        return true;
     }
 }

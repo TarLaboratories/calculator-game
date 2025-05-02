@@ -1,5 +1,8 @@
 package com.calcgame.main;
 
+import com.calcgame.main.buttons.Properties;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.python.core.PyComplex;
 import com.calcgame.main.buttons.CalcButton;
 
@@ -8,11 +11,16 @@ import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
     protected int width, height, x, y, cur_height, max_width;
     protected HashMap<Coordinate, Button> buttons_by_coords = new HashMap<>();
     protected GameState state;
+
+    private ButtonCollection() {
+        super();
+    }
 
     public ButtonCollection(Rectangle rectangle, GameState state) {
         super();
@@ -25,11 +33,11 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     protected static class Button {
         CalcButton button;
-        CalcButton.Properties properties;
+        Properties properties;
     }
 
     public static class Coordinate {
-        int x, y;
+        public int x, y;
 
         public Coordinate() {
             this.x = 0;
@@ -95,7 +103,7 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         this.max_width = 0;
     }
 
-    public void add(CalcButton button, CalcButton.Properties properties) {
+    public void add(CalcButton button, Properties properties) {
         Button tmp_button = new Button();
         tmp_button.button = button;
         tmp_button.properties = properties;
@@ -126,7 +134,7 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         tmp_button.properties.pos = cur;
         this.buttons_by_coords.put(cur, tmp_button);
         max_width = Math.max(last_x + button.getWidth(state, properties) - x, max_width);
-        button.render(state, properties);
+        button.onAdd(state, properties, new PyComplex(0));
         this.add(tmp_button);
     }
 
@@ -138,12 +146,14 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         for (Button b : this) {
             if (b.button == button) {
                 assert b.properties.count != null;
+                PyComplex old_count = new PyComplex(b.properties.count.real, b.properties.count.imag);
                 b.properties.count = b.properties.count.__add__(count).__complex__();
                 button.render(state, b.properties);
+                button.onAdd(state, b.properties, old_count);
                 return;
             }
         }
-        add(button, CalcButton.Properties.count(count));
+        add(button, Properties.count(count));
     }
 
     public void addCount(CalcButton button, PyComplex count) {
@@ -172,8 +182,7 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         button.render(state, buttons_by_coords.get(coords).properties);
     }
 
-    public List<Coordinate> getNeighbourCoords(CalcButton button) {
-        Coordinate coords = getCoords(button);
+    public List<Coordinate> getNeighbourCoords(Coordinate coords) {
         ArrayList<Coordinate> out = new ArrayList<>();
         if (getButton(coords.left()) != null) out.add(coords.left());
         if (getButton(coords.right()) != null) out.add(coords.right());
@@ -195,5 +204,36 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         width = d.width;
         height = d.height;
         forEach((button -> add(button.button, button.properties)));
+    }
+
+    public JSONObject toJSON() {
+        JSONObject out = new JSONObject();
+        out.put("width", width);
+        out.put("height", height);
+        out.put("x", x);
+        out.put("y", y);
+        out.put("cur_height", cur_height);
+        out.put("max_width", max_width);
+        JSONArray buttons_json = new JSONArray();
+        this.forEach((b) -> buttons_json.put(Map.of("button", b.button.getString(), "properties", b.properties.toJSON())));
+        out.put("buttons", buttons_json);
+        return out;
+    }
+
+    public static ButtonCollection fromJSON(JSONObject o, GameState state) {
+        ButtonCollection out = new ButtonCollection();
+        out.state = state;
+        out.width = o.getInt("width");
+        out.height = o.getInt("height");
+        out.x = o.getInt("x");
+        out.y = o.getInt("y");
+        out.cur_height = o.getInt("cur_height");
+        out.max_width = o.getInt("max_width");
+        o.getJSONArray("buttons").forEach((_o) -> {
+            if (_o instanceof JSONObject obj) {
+                out.add(state.button_lookup.get(obj.getString("button")), Properties.fromJSON(obj.getJSONObject("properties")));
+            }
+        });
+        return out;
     }
 }

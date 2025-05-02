@@ -23,7 +23,9 @@ dependencies {
     // This dependency is found on compile classpath of this component and consumers.
     implementation 'org.python:jython-slim:2.7.4'
     implementation 'org.json:json:20231013'
+    implementation 'org.apache.logging.log4j:log4j-api:2.24.3'
     compileOnly 'org.jetbrains:annotations:26.0.2'
+    runtimeOnly 'org.apache.logging.log4j:log4j-core:2.24.3'
 }
 
 java {
@@ -35,3 +37,33 @@ java {
 application {
     mainClass = 'Main'
 }
+
+jar {
+    destinationDirectory.set(layout.buildDirectory.dir("jars"))
+    manifest {
+        attributes(
+                'Main-Class': 'Main',
+                'Multi-Release': true
+        )
+    }
+    duplicatesStrategy = 'EXCLUDE'
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    } {
+        exclude 'META-INF/*.SF'
+        exclude 'META-INF/*.DSA'
+        exclude 'META-INF/*.RSA'
+    }
+}
+
+CopySpec configSpec = copySpec {
+    from 'src/main/config'
+    include '*'
+}
+
+tasks.register('copyConfigs', Copy) {
+    into layout.buildDirectory.dir('classes/java/main')
+    with configSpec
+}
+
+tasks.compileJava.dependsOn.add 'copyConfigs'
