@@ -1,13 +1,11 @@
 package com.calcgame.main.buttons;
 
-import com.calcgame.main.Utils;
+import com.calcgame.main.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 import org.python.core.PyComplex;
 import org.python.util.PythonInterpreter;
-import com.calcgame.main.Action;
-import com.calcgame.main.ActionContext;
-import com.calcgame.main.GameState;
 
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -15,16 +13,55 @@ import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * A button that has functions for all main events
+ */
 public class FuncButton implements CalcButton {
+    /**
+     * The text displayed on the button, and the second part of this button's id
+     */
     protected String text;
-    protected String tooltip;
-    protected Action onClick, onAdd;
+
+    /**
+     * The id of the mod that registered this button
+     */
+    protected String mod_id;
+
+    /**
+     * This button's tooltip, may be {@code null}
+     */
+    protected @Nullable String tooltip;
+
+    /**
+     * The action to execute when this button is clicked
+     */
+    protected Action onClick;
+
+    /**
+     * The action to execute when this button is added to any {@link ButtonCollection}
+     */
+    protected Action onAdd;
+
+    /**
+     * The logger for this object, may have a non-default name
+     */
     private final Logger LOGGER;
 
+    /**
+     * Constructs a new FuncButton with the default logger name.
+     * Leaves all other fields {@code null}, to be assigned later.
+     * @see FuncButton#newButton(List, String)
+     */
     public FuncButton() {
         LOGGER = LogManager.getLogger();
     }
 
+    /**
+     * Constructs a new FuncButton with the specified name for it's logger.
+     * Leaves all other fields {@code null}, to be assigned later.
+     * @param logger_name the name of the logger
+     * @see FuncButton#newButton(List, String)
+     */
     public FuncButton(String logger_name) {
         LOGGER = LogManager.getLogger("FuncButton/%s".formatted(logger_name));
     }
@@ -37,14 +74,17 @@ public class FuncButton implements CalcButton {
     @Override
     public void onAdd(GameState state, Properties properties, PyComplex old_count) {
         LOGGER.trace("Adding button '{}'", text);
-        Action action = new Action() {
+        ActionContext ctx = new ActionContext(state, properties, properties.pos, properties.collection, state.getScreen(), LOGGER);
+        Action action = new Action("onAdd") {
             @Override
-            public void redo() {
+            protected void redoInternal() {
+                assert getContext() != null;
                 render(state, getContext().properties());
             }
 
             @Override
-            public void undo() {
+            protected void undoInternal() {
+                assert getContext() != null;
                 LOGGER.trace("Undoing adding a button, count {} -> {}", getContext().properties().count, old_count);
                 if (getContext().properties().count == null && !getContext().properties().infinity) {
                     LOGGER.debug("Undoing adding a button to the shop");
@@ -60,12 +100,13 @@ public class FuncButton implements CalcButton {
 
             @Override
             public boolean undoable() {
+                assert getContext() != null;
                 return !(getContext().properties().count == null && !getContext().properties().infinity);
             }
 
             @Override
             public ActionContext getContext() {
-                return new ActionContext(state, properties, properties.pos, properties.collection, state.getScreen(), LOGGER);
+                return ctx;
             }
         };
         if (onAdd == null) {
@@ -74,6 +115,7 @@ public class FuncButton implements CalcButton {
             return;
         }
         state.appendToLastAction(action.andThen(onAdd)).redo();
+        state.getEvent(Events.ADD).emit(ctx, getString());
     }
 
     @Override
@@ -81,31 +123,48 @@ public class FuncButton implements CalcButton {
         if (onClick == null) throw new UnsupportedOperationException("This button was initialised without arguments, and is valid only for constructing com.calcgame.main.buttons");
         if (properties.price != null) {
             if (state.getMoney().__cmp__(properties.price) == -1) return;
-            state.subMoney(properties.price);
-            state.getCurrentButtons().add(this, properties.infinity ? PyComplex.Inf : new PyComplex(1));
-            state.appendToLastAction(Action.forUndo(() -> {
-                state.addMoney(properties.price);
-                properties.sold = false;
-                if (properties.infinity) state.getSellableButtons().add(this);
-                render(state, properties);
-            }));
-            properties.sold = true;
-            if (properties.rendered_button != null) state.getWindow().remove(properties.rendered_button);
-            if (properties.rendered_price != null) state.getWindow().remove(properties.rendered_price);
-            if (properties.rendered_count != null) state.getWindow().remove(properties.rendered_count);
-            if (properties.infinity) state.getSellableButtons().remove(this);
-            destroy(state, properties);
+            ActionContext ctx = new ActionContext(state, properties, properties.pos, properties.collection, state.getScreen(), LOGGER);
+            state.appendToLastAction(new Action("buy") {
+                @Override
+                protected void redoInternal() {
+                    state.subMoney(properties.price);
+                    state.getCurrentButtons().add(FuncButton.this, properties.infinity ? PyComplex.Inf : new PyComplex(1));
+                    properties.sold = true;
+                    if (properties.rendered_button != null) state.getWindow().remove(properties.rendered_button);
+                    if (properties.rendered_price != null) state.getWindow().remove(properties.rendered_price);
+                    if (properties.rendered_count != null) state.getWindow().remove(properties.rendered_count);
+                    if (properties.infinity) state.getSellableButtons().remove(FuncButton.this);
+                    destroy(state, properties);
+                }
+
+                @Override
+                protected void undoInternal() {
+                    state.addMoney(properties.price);
+                    properties.sold = false;
+                    if (properties.infinity) state.getSellableButtons().add(FuncButton.this);
+                    render(state, properties);
+                }
+
+                @Override
+                public boolean undoable() {
+                    return true;
+                }
+            }).redo();
+            state.getEvent(Events.BUY).emit(ctx, getString());
         } else if (properties.count != null) {
             if (!properties.infinity && properties.count.real == 0 && properties.count.imag == 0) return;
-            state.doAction(new Action() {
+            ActionContext ctx = new ActionContext(state, properties, properties.pos, properties.collection, state.getScreen(), LOGGER);
+            state.doAction(new Action("onClick") {
                 @Override
-                public void redo() {
+                protected void redoInternal() {
+                    assert getContext() != null;
                     if (!getContext().properties().infinity) getContext().properties().decreaseCount();
                     render(state, getContext().properties());
                 }
 
                 @Override
-                public void undo() {
+                protected void undoInternal() {
+                    assert getContext() != null;
                     if (!getContext().properties().infinity) getContext().properties().increaseCount();
                     render(state, getContext().properties());
                 }
@@ -117,9 +176,10 @@ public class FuncButton implements CalcButton {
 
                 @Override
                 public ActionContext getContext() {
-                    return new ActionContext(state, properties, properties.pos, properties.collection, state.getScreen(), LOGGER);
+                    return ctx;
                 }
             }.andThen(onClick));
+            state.getEvent(Events.CLICK).emit(ctx, getString());
         }
     }
 
@@ -133,7 +193,7 @@ public class FuncButton implements CalcButton {
      * @return a button object that can be rendered and pressed
      */
     @Override
-    public CalcButton newButton(List<String> args) {
+    public CalcButton newButton(List<String> args, String mod_id) {
         FuncButton out = new FuncButton(args.getFirst());
         try (PythonInterpreter py = new PythonInterpreter()) {
             Consumer<ActionContext> f = (ctx) -> {
@@ -149,6 +209,7 @@ public class FuncButton implements CalcButton {
                 py.exec(args.get(3));
             };
             out.text = args.getFirst();
+            out.mod_id = mod_id;
             if (args.size() > 2) out.tooltip = args.get(2);
             out.onClick = Utils.actionFromPy(py, args.get(1), "on_click", out.LOGGER, f, u);
             out.onAdd = Utils.actionFromPy(py, args.get(1), "on_add", out.LOGGER, (_) -> {}, (_) -> {});
@@ -235,8 +296,21 @@ public class FuncButton implements CalcButton {
         return 50;
     }
 
+    /**
+     * Returns the id of this button in the format 'modid:text'
+     * @return the id of this button
+     */
     @Override
     public String getString() {
-        return text;
+        return "%s:%s".formatted(mod_id, text);
+    }
+
+    /**
+     * Equivalent to {@link FuncButton#getString()}
+     * @return the id of this button
+     */
+    @Override
+    public String toString() {
+        return getString();
     }
 }

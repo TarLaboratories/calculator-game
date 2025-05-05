@@ -9,22 +9,75 @@ import org.python.core.PyDictionary;
 
 import java.awt.*;
 
+/**
+ * The properties of a button in a {@link ButtonCollection}
+ */
 public class Properties {
-    public int x;
-    public int y;
+    /**
+     * Constructs a properties object with all fields as {@code null}
+     */
+    public Properties() {}
+    /**
+     * The coordinates where the button is rendered (in px)
+     */
+    public int x, y;
+
+    /**
+     * The number of clicks remaining (or {@code null} if the button is in the shop)
+     */
     @Nullable
     public PyComplex count;
+
+    /**
+     * The price of the button (or {@code null} if it is not in the shop)
+     */
     @Nullable
     public PyComplex price;
-    public boolean infinity = false, sold = false;
+
+    /**
+     * Whether the button can be clicked infinitely
+     */
+    public boolean infinity = false;
+
+    /**
+     * Whether the button has been sold and should not be rendered
+     */
+    public boolean sold = false;
+
+    /**
+     * The rendered button object (or {@code null} if it has not been rendered yet)
+     */
     public Button rendered_button;
-    public Label rendered_price, rendered_count;
+
+    /**
+     * The rendered price label object (or {@code null} if it has not been rendered yet)
+     */
+    public Label rendered_price;
+
+    /**
+     * The rendered count label object (or {@code null} if it has not been rendered yet)
+     */
+    public Label rendered_count;
+
+    /**
+     * The collection to which the button belongs
+     */
     public ButtonCollection collection;
+
+    /**
+     * The position of the button in the collection
+     */
     public ButtonCollection.Coordinate pos;
+
+    /**
+     * Other (mainly modded) data about the button
+     */
     public PyDictionary data = new PyDictionary();
 
     /**
      * Creates a new Properties object that only has the price set
+     * @param price what to set the price to
+     * @return the new Properties object
      */
     public static Properties price(PyComplex price) {
         Properties properties = new Properties();
@@ -34,6 +87,8 @@ public class Properties {
 
     /**
      * Creates a new Properties object that only has the count set
+     * @param count what to set the count to
+     * @return a properties object with the specified count
      */
     public static Properties count(PyComplex count) {
         Properties properties = new Properties();
@@ -43,6 +98,8 @@ public class Properties {
 
     /**
      * Creates a new Properties object that only has the price set
+     * @param price what to set the price to
+     * @return a properties object with the specified price
      */
     public static Properties price(double price) {
         return price(new PyComplex(price));
@@ -50,6 +107,8 @@ public class Properties {
 
     /**
      * Creates a new Properties object that only has the count set
+     * @param count what to set the count to
+     * @return a properties object with the specified count
      */
     public static Properties count(double count) {
         return count(new PyComplex(count));
@@ -102,6 +161,7 @@ public class Properties {
 
     /**
      * Serialises this object
+     * @return the serialised object
      */
     public JSONObject toJSON() {
         JSONObject out = new JSONObject();
@@ -116,6 +176,8 @@ public class Properties {
 
     /**
      * Deserializes this object
+     * @param o the object to deserialize
+     * @return the deserialized object
      */
     public static Properties fromJSON(JSONObject o) {
         Properties out = new Properties();

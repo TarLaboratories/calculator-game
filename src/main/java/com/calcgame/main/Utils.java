@@ -16,8 +16,14 @@ import java.util.function.Consumer;
  * All methods are static.
  */
 public class Utils {
-    private Utils() {}
     /**
+     * A private constructor to prevent accidental instantiations of this class
+     */
+    private Utils() {}
+
+    /**
+     * Creates a new Writer object that writes everything using the provided logger
+     * @param logger the logger to use
      * @return a new Writer object that is configured to write everything using {@link Logger#info(Object)}
      */
     public static Writer writerFromLogger(Logger logger) {
@@ -42,6 +48,9 @@ public class Utils {
     }
 
     /**
+     * Returns whether the provided Python script defines a function with the specified name
+     * @param script the Python script
+     * @param func_name the name of the function to look for
      * @return whether the provided Python script defines a function with the specified name
      */
     public static boolean pyDefinesFunction(String script, String func_name) {
@@ -79,26 +88,24 @@ public class Utils {
      * @param out the logger to use for the python functions to output
      * @param fallback_redo the redo function to use if the python function was not defined
      * @param fallback_undo the undo function to use if the python function was not defined
-     * @return an action object, that has a python function with the name {@code name} as {@link Action#redo()}, and a function with name {@code name + "_rev"} as {@link Action#undo()}
+     * @return an action object, that has a python function with the name {@code name} as {@link Action#redo()}, and a function with name {@code name + "_rev"} as {@link Action#undoInternal()}
      */
     public static Action actionFromPy(PythonInterpreter py, String script, String name, Logger out, Consumer<ActionContext> fallback_redo, Consumer<ActionContext> fallback_undo) {
         Consumer<ActionContext> redo = funcFromPy(py, script, name, out);
         Consumer<ActionContext> undo = funcFromPy(py, script, name + "_rev", out);
-        return new Action() {
+        return new Action("py_" + name) {
             @Override
-            public void redo() {
-                out.trace("Redoing function with name '{}'", name);
+            protected void redoInternal() {
                 if (redo != null) redo.accept(getContext());
                 else if (fallback_redo != null) fallback_redo.accept(getContext());
-                else out.debug("Neither redo or fallback_redo are callable in action '{}'", name);
+                else out.debug("Neither redo or fallback_redo are callable in action {}", name);
             }
 
             @Override
-            public void undo() {
-                out.trace("Undoing function with name '{}'", name);
+            protected void undoInternal() {
                 if (undo != null) undo.accept(getContext());
                 else if (fallback_undo != null) fallback_undo.accept(getContext());
-                else out.debug("Neither undo or fallback_undo are callable in action '{}'", name);
+                else out.debug("Neither undo or fallback_undo are callable in action {}", name);
             }
 
             @Override
@@ -109,7 +116,13 @@ public class Utils {
     }
 
     /**
+     * Generates an action object from the specified python script and name.
      * Equivalent to using {@link Utils#actionFromPy(PythonInterpreter, String, String, Logger, Consumer, Consumer)} with the last two arguments as {@code null}
+     * @param py the python interpreter to use
+     * @param script the python script from which to get the functions
+     * @param name the name of the function for {@code redo}
+     * @param out the logger to use for the python functions to output
+     * @return an action object, that has a python function with the name {@code name} as {@link Action#redo()}, and a function with name {@code name + "_rev"} as {@link Action#undoInternal()}
      */
     public static Action actionFromPy(PythonInterpreter py, String script, String name, Logger out) {
         return actionFromPy(py, script, name, out, null, null);
@@ -117,6 +130,8 @@ public class Utils {
 
     /**
      * Serialises a PyComplex number
+     * @param x the object to serialize
+     * @return the serialised object
      * @see Utils#fromJSON(JSONObject)
      */
     public static JSONObject toJSON(PyComplex x) {
@@ -127,6 +142,8 @@ public class Utils {
 
     /**
      * Deserializes a PyComplex number
+     * @param o the object to deserialize into a PyComplex number
+     * @return the deserialized object
      * @see Utils#toJSON(PyComplex)
      */
     public static PyComplex fromJSON(JSONObject o) {

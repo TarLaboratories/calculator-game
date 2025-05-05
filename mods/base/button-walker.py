@@ -1,10 +1,10 @@
 def lol(ctx):
     state = ctx.state()
     buttons = state.getCurrentButtons()
-    this_button = state.getButton('>:)')
+    this_button = state.getButton('base:>:)')
     this_coords = ctx.pos()
     target = state.randomChoice([i for i in buttons.getNeighbourCoords(this_coords) if not buttons.getButton(i).getString() == '='])
-    buttons.setButton(this_coords, state.getButton('X'))
+    buttons.setButton(this_coords, state.getButton('base:X'))
     buttons.setButton(target, this_button)
     ctx.pos().x = target.x
     ctx.pos().y = target.y
@@ -21,7 +21,7 @@ def on_click(ctx):
     if not state.chance(1, 2):
         lol(ctx)
     else:
-        state.getCurrentButtons().setButton(state.getCurrentButtons().getCoords(state.getButton('>:)')), state.getRandomButton())
+        state.getCurrentButtons().setButton(state.getCurrentButtons().getCoords(state.getButton('base:>:)')), state.getRandomButton())
         state.removeOnRoundStart("walker-button")
 
 def on_add(ctx):

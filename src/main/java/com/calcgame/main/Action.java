@@ -1,38 +1,79 @@
 package com.calcgame.main;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
+
 /**
  * Represents an input action from the player, contains functions to execute and (optionally) undo it.<br>
  * It should also store the context of this action (i.e. which button was clicked, it's position and container)
  * @see Action#redo()
- * @see Action#undo()
+ * @see Action#undoInternal()
  * @see Action#undoable()
  */
 public abstract class Action {
-    private ActionContext context;
+    /**
+     * The logger for all action objects
+     */
+    private static final Logger LOGGER = LogManager.getLogger();
+    /**
+     * The context of this action
+     */
+    private @Nullable ActionContext context;
+    /**
+     * The name of the action, used for logging purposes
+     */
+    public final String name;
+
+    /**
+     * Constructs a new action with the specified name, requires all abstract functions to be defined
+     * @param name the name of this action
+     */
+    public Action(String name) {
+        this.name = name;
+    }
+
+    /**
+     * Does (or redoes) the action.
+     */
+    public final void redo() {
+        LOGGER.trace("Redoing {}", name);
+        redoInternal();
+    }
 
     /**
      * Should do (or redo) the action.
      */
-    abstract public void redo();
+    protected abstract void redoInternal();
+
+    /**
+     * Undoes the action.
+     * It should not be invoked if {@link Action#undoable()} returns false.
+     */
+    public final void undo() {
+        LOGGER.trace("Undoing {}", name);
+        undoInternal();
+    }
 
     /**
      * Should undo the action.
      * It should not be invoked if {@link Action#undoable()} returns false.
      */
-    abstract public void undo();
+    protected abstract void undoInternal();
 
     /**
      * It should be noted that any class that uses this class may disregard this
-     * function's return value, and still invoke {@link Action#undo()}, though it is
+     * function's return value, and still invoke {@link Action#undoInternal()}, though it is
      * not recommended.
-     * @return whether {@link Action#undo()} is supposed to be invoked.
+     * @return whether {@link Action#undoInternal()} is supposed to be invoked.
      */
     abstract public boolean undoable();
 
     /**
-     * @return this Action's context, may be {@code null}
+     * Returns this action's context
+     * @return this action's context, may be {@code null}
      */
-    public ActionContext getContext() {
+    public @Nullable ActionContext getContext() {
         return context;
     }
 
@@ -40,7 +81,7 @@ public abstract class Action {
      * Sets this Action's context
      * @param context the context to set, may be {@code null}
      */
-    public void setContext(ActionContext context) {
+    public void setContext(@Nullable ActionContext context) {
         this.context = context;
     }
 
@@ -53,17 +94,17 @@ public abstract class Action {
      */
     public Action andThen(Action other) {
         if (other.getContext() == null) other.setContext(this.getContext());
-        return new Action() {
+        return new Action("%s/%s".formatted(name, other.name)) {
             @Override
-            public void redo() {
-                Action.this.redo();
-                other.redo();
+            protected void redoInternal() {
+                Action.this.redoInternal();
+                other.redoInternal();
             }
 
             @Override
-            public void undo() {
-                Action.this.undo();
-                other.undo();
+            protected void undoInternal() {
+                Action.this.undoInternal();
+                other.undoInternal();
             }
 
             @Override
@@ -88,17 +129,18 @@ public abstract class Action {
      * Returns an {@code Action} object, which runs the specified function in {@code redo()},
      * and does nothing in {@code undo()}. The result Action is not {@code undoable}, and it's context is {@code null}
      * @param f the function to run in {@code redo()}
+     * @param name the name of the action
      * @return a new Action object
      */
-    public static Action forFunction(Runnable f) {
-        return new Action() {
+    public static Action forFunction(Runnable f, String name) {
+        return new Action(name) {
             @Override
-            public void redo() {
+            protected void redoInternal() {
                 f.run();
             }
 
             @Override
-            public void undo() {}
+            protected void undoInternal() {}
 
             @Override
             public boolean undoable() {
@@ -111,15 +153,16 @@ public abstract class Action {
      * Returns an {@code Action} object, which runs the specified function in {@code undo()},
      * and does nothing in {@code redo()}. The result Action is {@code undoable}, and it's context is {@code null}
      * @param f the function to run in {@code undo()}
+     * @param name the name of the action
      * @return a new Action object
      */
-    public static Action forUndo(Runnable f) {
-        return new Action() {
+    public static Action forUndo(Runnable f, String name) {
+        return new Action(name) {
             @Override
-            public void redo() {}
+            protected void redoInternal() {}
 
             @Override
-            public void undo() {
+            protected void undoInternal() {
                 f.run();
             }
 

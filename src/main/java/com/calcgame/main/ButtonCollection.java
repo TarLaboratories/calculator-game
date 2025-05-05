@@ -17,10 +17,49 @@ import java.util.Map;
  * A collection of rendered buttons, that have count, price and other properties
  */
 public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
-    protected int width, height, x, y, cur_height, max_width;
+    /**
+     * The maximum width of this collection
+     */
+    protected int width;
+
+    /**
+     * The maximum height of this collection
+     */
+    protected int height;
+
+    /**
+     * The {@code x} coordinate of the top left corner
+     */
+    protected int x;
+
+    /**
+     * The {@code y} coordinate of the top left corner
+     */
+    protected int y;
+
+    /**
+     * Current height of this collection
+     */
+    protected int cur_height;
+
+    /**
+     * The actual width of this rendered collection
+     */
+    protected int max_width;
+
+    /**
+     * A map, where the key is coordinates, and the value is the button at those coordinates
+     */
     protected HashMap<Coordinate, Button> buttons_by_coords = new HashMap<>();
+
+    /**
+     * The state where this collection was created
+     */
     protected GameState state;
 
+    /**
+     * Leaves all fields {@code null}, used mainly to create a deserialized object
+     */
     private ButtonCollection() {
         super();
     }
@@ -39,22 +78,51 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
         this.state = state;
     }
 
+    /**
+     * Represents a button stored in a {@link ButtonCollection}
+     */
     protected static class Button {
+        /**
+         * The button that this object represents
+         */
         CalcButton button;
+
+        /**
+         * The properties of the button that this object represents
+         */
         Properties properties;
+
+        /**
+         * Leaves everything {@code null}
+         */
+        public Button() {}
     }
 
     /**
-     * Represents the coordinates of a rendered button, relative to the first button in a {@code ButtonCollection}
+     * Represents the coordinates of a rendered button, relative to the first button in a {@link ButtonCollection}
      */
     public static class Coordinate {
-        public int x, y;
+        /**
+         * The {@code x} coordinate, from left to right
+         */
+        public int x;
+        /**
+         * The {@code y} coordinate, from up to down
+         */
+        public int y;
 
+        /**
+         * Creates a new coordinate object which points to {@code (0, 0)}
+         */
         public Coordinate() {
             this.x = 0;
             this.y = 0;
         }
 
+        /**
+         * Copies the provided coordinate object.
+         * @param c the coordinate to copy from
+         */
         public Coordinate(Coordinate c) {
             this.x = c.x;
             this.y = c.y;
@@ -75,24 +143,44 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
             return result;
         }
 
+        /**
+         * Returns a new coordinate, which has it's {@code y} one less than this coordinate's {@code y}.
+         * Does not modify this object.
+         * @return the resulting coordinate object
+         */
         public Coordinate left() {
             Coordinate out = new Coordinate(this);
             out.x--;
             return out;
         }
 
+        /**
+         * Returns a new coordinate, which has it's {@code x} one more than this coordinate's {@code x}.
+         * Does not modify this object.
+         * @return the resulting coordinate object
+         */
         public Coordinate right() {
             Coordinate out = new Coordinate(this);
             out.x++;
             return out;
         }
 
+        /**
+         * Returns a new coordinate, which has it's {@code y} one less than this coordinate's {@code y}.
+         * Does not modify this object.
+         * @return the resulting coordinate object
+         */
         public Coordinate up() {
             Coordinate out = new Coordinate(this);
             out.y--;
             return out;
         }
 
+        /**
+         * Returns a new coordinate, which has it's {@code y} one more than this coordinate's {@code y}.
+         * Does not modify this object.
+         * @return the resulting coordinate object
+         */
         public Coordinate down() {
             Coordinate out = new Coordinate(this);
             out.y++;
@@ -109,6 +197,7 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     /**
      * (Re)renders only the button at the specified coordinates.
+     * @param coords the coordinates
      */
     public void render(Coordinate coords) {
         if (!buttons_by_coords.containsKey(coords)) throw new UnsupportedOperationException("Cannot render a button at a non-initialized position");
@@ -125,6 +214,8 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     /**
      * Adds a button to this collection, regardless of whether it already exists in it or not
+     * @param button the button to add
+     * @param properties the properties of the button to add
      */
     public void add(CalcButton button, Properties properties) {
         Button tmp_button = new Button();
@@ -163,6 +254,7 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     /**
      * Adds 1 to the count of the specified button if it already exists, or adds it if not.
+     * @param button the button to add
      */
     public void add(CalcButton button) {
         add(button, new PyComplex(1));
@@ -170,6 +262,8 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     /**
      * Adds {@code count} to the count of the specified button if it already exists, or adds it if not.
+     * @param count the amount of the button to add
+     * @param button the button to add
      */
     public void add(CalcButton button, PyComplex count) {
         for (Button b : this) {
@@ -187,19 +281,24 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     /**
      * Equivalent to {@link ButtonCollection#add(CalcButton, PyComplex)}. It is here mainly to avoid conflicts with the inherited {@code add} method and for mods
+     * @param button the button to add
+     * @param count the amount of the button to add
      */
     public void addCount(CalcButton button, PyComplex count) {
         this.add(button, count);
     }
 
     /**
-     * @return the width, supplied in the constructor
+     * Returns the actual width of this rendered collection
+     * @return the width
      */
     public int getWidth() {
         return max_width;
     }
 
     /**
+     * Returns the coordinates of the specified button
+     * @param button the button
      * @return the coordinates of any button that is equal to the specified button.
      */
     public Coordinate getCoords(CalcButton button) {
@@ -210,6 +309,8 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
     }
 
     /**
+     * Returns the button at the specified coordinates.
+     * @param coords the coordinates of the button
      * @return the button at the specified coordinates, or {@code null} if there is nothing at these coordinates
      */
     public CalcButton getButton(Coordinate coords) {
@@ -219,6 +320,8 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     /**
      * Sets the button at the specified coordinates to the provided one, and keeps the properties of the old button.
+     * @param button the button to set
+     * @param coords the coordinates, at which to set
      */
     public void setButton(Coordinate coords, CalcButton button) {
         if (getButton(coords) == null) throw new UnsupportedOperationException("Cannot set a button at a non-initialized position");
@@ -227,6 +330,8 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
     }
 
     /**
+     * Returns all neighbouring coordinates, where a button exists.
+     * @param coords the coordinates
      * @return all neighbouring coordinates, where a button exists.
      */
     public List<Coordinate> getNeighbourCoords(Coordinate coords) {
@@ -239,6 +344,7 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
     }
 
     /**
+     * Returns a list of all buttons in this collection
      * @return a list of all buttons in this collection
      */
     public List<CalcButton> getButtons() {
@@ -249,6 +355,7 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     /**
      * Sets the bounds of this rendered collection, and rerenders it
+     * @param d the bounds to set
      */
     public void setDimensions(Rectangle d) {
         destroy();
@@ -261,6 +368,7 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     /**
      * Serialises this object.
+     * @return the serialised object
      */
     public JSONObject toJSON() {
         JSONObject out = new JSONObject();
@@ -278,7 +386,9 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
 
     /**
      * Deserializes this object
+     * @param o the object to deserialize from
      * @param state the current game state for button lookup
+     * @return the deserialized object
      */
     public static ButtonCollection fromJSON(JSONObject o, GameState state) {
         ButtonCollection out = new ButtonCollection();

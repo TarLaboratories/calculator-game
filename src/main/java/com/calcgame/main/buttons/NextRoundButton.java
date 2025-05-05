@@ -3,7 +3,13 @@ package com.calcgame.main.buttons;
 import com.calcgame.main.Action;
 import com.calcgame.main.GameState;
 
+/**
+ * A system button used in the shop
+ */
 public class NextRoundButton extends FuncButton {
+    /**
+     * Constructs the next round button
+     */
     public NextRoundButton() {
         super("Next Round");
         text = "Next Round";
@@ -11,7 +17,7 @@ public class NextRoundButton extends FuncButton {
 
     @Override
     public void onClick(GameState state, Properties properties) {
-        state.doAction(Action.forFunction(state::nextRound));
+        state.doAction(Action.forFunction(state::nextRound, "nextRoundOnClick"));
     }
 
     @Override

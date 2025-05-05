@@ -5,6 +5,9 @@ import com.calcgame.main.GameState;
 
 import java.util.List;
 
+/**
+ * Represents any button that can appear in the game
+ */
 public interface CalcButton {
     /**
      * Should be invoked when the button is clicked
@@ -62,17 +65,20 @@ public interface CalcButton {
      * Should create a new button with the specified arguments.
      * Should be invoked only on a {@code CalcButton} object that was initialised without arguments
      * @param args the arguments for initialisation, usually from a mod config file
+     * @param mod_id the id of the mod that registered this button
      * @return a new {@code CalcButton}
      */
-    CalcButton newButton(List<String> args);
+    CalcButton newButton(List<String> args, String mod_id);
 
     /**
-     * @return the id of the button, set when invoking {@link CalcButton#newButton(List)}
+     * Returns the id of the button, set when invoking {@link CalcButton#newButton(List, String)}
+     * @return the id of the button
      */
     String getString();
 
     /**
-     * @return if the button is a system button (e.g. '=', 'UNDO', 'REDO', 'Reroll', etc.)
+     * Returns whether the button is a system button (e.g. '=', 'UNDO', 'REDO', 'Reroll', etc.)
+     * @return if the button is a system button
      */
     boolean isVital();
 }

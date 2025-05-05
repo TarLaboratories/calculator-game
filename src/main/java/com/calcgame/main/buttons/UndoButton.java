@@ -2,7 +2,13 @@ package com.calcgame.main.buttons;
 
 import com.calcgame.main.GameState;
 
+/**
+ * A system button that invokes {@link GameState#undo()} when clicked
+ */
 public class UndoButton extends FuncButton {
+    /**
+     * Constructs the undo button
+     */
     public UndoButton() {
         super("UNDO");
         text = "UNDO";

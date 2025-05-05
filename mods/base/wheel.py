@@ -2,5 +2,5 @@ def on_click(ctx):
     state = ctx.state()
     if not ctx.properties().infinity and state.chance(1, 16): # wheel of fortune 1 in 4 chance
         for i in state.getCurrentButtons().getButtons():
-            if i != state.getButton('WOF'):
+            if i != state.getButton('base:WOF'):
                 state.getCurrentButtons().addCount(i, complex(3))
