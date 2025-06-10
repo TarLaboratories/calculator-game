@@ -303,9 +303,11 @@ public class ButtonCollection extends ArrayList<ButtonCollection.Button> {
      */
     public Coordinate getCoords(CalcButton button) {
         for (Coordinate i : buttons_by_coords.keySet()) {
-            if (buttons_by_coords.get(i).button == button) return i;
+            if (buttons_by_coords.get(i) == null) buttons_by_coords.remove(i);
+            else if (buttons_by_coords.get(i).button == button) return i;
         }
-        throw new IndexOutOfBoundsException("The requested button doesn't exist in this collection");
+        return null;
+        //throw new IndexOutOfBoundsException("The requested button doesn't exist in this collection");
     }
 
     /**

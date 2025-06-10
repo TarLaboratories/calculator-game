@@ -34,4 +34,8 @@ public class Events {
      * Emitted after any button is bought
      */
     public static final String BUY = "buy";
+
+    public static final String KEY_PRESS = "keyPress";
+
+    public static final String MOUSE_CLICK = "mouseClick";
 }

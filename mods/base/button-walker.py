@@ -1,9 +1,11 @@
+import com.calcgame.main.Action
+
 def lol(ctx):
     state = ctx.state()
     buttons = state.getCurrentButtons()
     this_button = state.getButton('base:>:)')
     this_coords = ctx.pos()
-    target = state.randomChoice([i for i in buttons.getNeighbourCoords(this_coords) if not buttons.getButton(i).getString() == '='])
+    target = state.randomChoice([i for i in buttons.getNeighbourCoords(this_coords) if not buttons.getButton(i).isVital()])
     buttons.setButton(this_coords, state.getButton('base:X'))
     buttons.setButton(target, this_button)
     ctx.pos().x = target.x

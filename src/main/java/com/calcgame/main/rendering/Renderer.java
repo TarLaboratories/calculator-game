@@ -1,35 +1,106 @@
 package com.calcgame.main.rendering;
 
-import static org.lwjgl.glfw.GLFW.*;
+import com.calcgame.main.Utils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
-public class RenderUtils {
-    public static int WIDTH = 720, HEIGHT = 1360/2;
-    // 3D stuff
-    public static float PROJECTION_CENTER_X = WIDTH / 2f;
-    public static float PROJECTION_CENTER_Y = HEIGHT / 2f;
-    public static float FIELD_OF_VIEW = WIDTH * 0.8f;
-    // cube const
-    static int[][] CUBE_LINES = {{0, 1}, {1, 3}, {3, 2}, {2, 0}, {2, 6}, {3, 7}, {0, 4}, {1, 5}, {6, 7}, {6, 4}, {7, 5}, {4, 5}};
-    static int[][] CUBE_VERTICES = {{-1, -1, -1}, {1, -1, -1}, {-1, 1, -1}, {1, 1, -1}, {-1, -1, 1}, {1, -1, 1}, {-1, 1, 1}, {1, 1, 1}};
+import java.io.FileNotFoundException;
+import java.util.List;
 
-    public static void drawLine(Window window, Vec3 v1, Vec3 v2) {
-        System.out.println("1: x = " + v1.x + ", y = " + v1.y + ", z = " + v1.z);
-        System.out.println("2: x = " + v2.x + ", y = " + v2.y + ", z = " + v2.z + "\n");
+import static org.lwjgl.opengl.GL30.*;
 
-        Vec3 v1Project = project(v1.x, v1.y, v1.z);
-        Vec3 v2Project = project(v2.x, v2.y, v2.z);
+public class Renderer {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private final ShaderProgram shaderProgram, depthShaderProgram;
+    private final Transformation transformation;
+    private final ShadowMap shadowMap;
+    private final Camera camera;
 
-        System.out.println("1 Project: x = " + v1Project.x + ", y = " + v1Project.y);
-        System.out.println("2 Project: x = " + v2Project.x + ", y = " + v2Project.y + "\n");
+    public static final float FOV = (float) Math.toRadians(60.0f);
+    public static final float Z_NEAR = 0.01f;
+    public static final float Z_FAR = 1000.f;
+    private final Vector3f ambientLight = new Vector3f(0.5f);
+    @SuppressWarnings("FieldCanBeLocal")
+    private final float ambientLightFactor = .5f;
 
-        g.drawLine((int) v1Project.x, (int) v1Project.y, (int) v2Project.x, (int) v2Project.y);
+    public Renderer() {
+        shaderProgram = new ShaderProgram();
+        transformation = new Transformation();
+        camera = new Camera();
+        try {
+            shaderProgram.setVertexShader(Utils.getFileContents(Resources.shader("vertex.vs")));
+            shaderProgram.setFragmentShader(Utils.getFileContents(Resources.shader("fragment.fs")));
+            shaderProgram.link();
+            LOGGER.debug("Successfully linked shader program!");
+            glClearColor(0, 0, 0, 0);
+            shaderProgram.createUniform("projectionMatrix");
+            shaderProgram.createUniform("modelViewMatrix");
+            shaderProgram.createUniform("txtSampler");
+            shaderProgram.createUniform("ambientLight.color");
+            shaderProgram.createUniform("ambientLight.factor");
+            shaderProgram.createMaterialUniform("material");
+            shaderProgram.createLightUniforms("pointLights", "spotLights", "dirLights", 5);
+            shaderProgram.setUniform("txtSampler", 0);
+            depthShaderProgram = new ShaderProgram();
+            depthShaderProgram.setVertexShader(Utils.getFileContents(Resources.shader("depth_vertex.vs")));
+            depthShaderProgram.setFragmentShader(Utils.getFileContents(Resources.shader("depth_fragment.fs")));
+            depthShaderProgram.link();
+            depthShaderProgram.createUniform("orthoProjectionMatrix");
+            depthShaderProgram.createUniform("modelLightViewMatrix");
+            shadowMap = new ShadowMap();
+        } catch (FileNotFoundException e) {
+            LOGGER.error("Cannot load shaders: files do not exist!");
+            throw new RuntimeException(e);
+        }
     }
 
-    public static Vec3 project(float x, float y, float z){
-        float scaleProjected = FIELD_OF_VIEW / (FIELD_OF_VIEW + z);
-        float xProjected = (x * scaleProjected) + PROJECTION_CENTER_X;
-        float yProjected = (y * scaleProjected) + PROJECTION_CENTER_Y;
+    public void render(Window window, List<GameObject> gameObjects, Lights lights) {
+        clear();
+        renderDepthMap(window, gameObjects, lights);
+        glViewport(0, 0, window.getWidth(), window.getHeight());
+        shaderProgram.bind();
+        Matrix4f projectionMatrix = transformation.getProjectionMatrix(FOV, window.getWidth(), window.getHeight(), Z_NEAR, Z_FAR);
+        shaderProgram.setUniform("projectionMatrix", projectionMatrix);
+        shaderProgram.setUniform("ambientLight.color", ambientLight);
+        shaderProgram.setUniform("ambientLight.factor", ambientLightFactor);
+        Matrix4f viewMatrix = transformation.getViewMatrix(camera);
+        shaderProgram.setLightUniforms("pointLights", "spotLights", "dirLight", lights, transformation);
+        for (GameObject gameObject : gameObjects) {
+            gameObject.render(transformation, viewMatrix, shaderProgram);
+        }
+        shaderProgram.unbind();
+    }
 
-        return new Vec3(xProjected, yProjected, scaleProjected);
+    public void renderDepthMap(Window window, List<GameObject> gameObjects, Lights lights) {
+        glBindFramebuffer(GL_FRAMEBUFFER, shadowMap.getDepthMapFBO());
+        glViewport(0, 0, ShadowMap.SHADOW_MAP_WIDTH, ShadowMap.SHADOW_MAP_HEIGHT);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        depthShaderProgram.bind();
+        //TODO make depth map
+        depthShaderProgram.unbind();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    public Camera getCamera() {
+        return camera;
+    }
+
+    public void clear() {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
+    public void cleanup() {
+        if (shaderProgram != null) {
+            shaderProgram.cleanup();
+        }
+        if (depthShaderProgram != null) {
+            depthShaderProgram.cleanup();
+        }
+    }
+
+    public Transformation getTransformation() {
+        return transformation;
     }
 }

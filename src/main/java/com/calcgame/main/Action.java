@@ -4,6 +4,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.Consumer;
+
 /**
  * Represents an input action from the player, contains functions to execute and (optionally) undo it.<br>
  * It should also store the context of this action (i.e. which button was clicked, it's position and container)
@@ -23,7 +25,7 @@ public abstract class Action {
     /**
      * The name of the action, used for logging purposes
      */
-    public final String name;
+    public String name;
 
     /**
      * Constructs a new action with the specified name, requires all abstract functions to be defined
@@ -31,6 +33,57 @@ public abstract class Action {
      */
     public Action(String name) {
         this.name = name;
+    }
+
+    /**
+     * Constructs a new action with the specified name and (nullable) context, requires all abstract functions to be defined
+     * @param name the name of this action
+     * @param ctx the starting context of this action, can be changed using {@link Action#setContext(ActionContext)}
+     */
+    public Action(String name, @Nullable ActionContext ctx) {
+        this.name = name;
+        this.context = ctx;
+    }
+
+    /**
+     * Creates a new action with the specified name, redo and undo functions.
+     * Equivalent to {@link Action#forFuncs(String, Consumer, Consumer, ActionContext)} with a {@code null} context
+     * @param name the name of the function
+     * @param redo the redo function
+     * @param undo the undo function
+     * @return the created action
+     */
+    @ForMods
+    public static Action forFuncs(String name, Consumer<ActionContext> redo, Consumer<ActionContext> undo) {
+        return forFuncs(name, redo, undo, null);
+    }
+
+    /**
+     * Creates a new action with the specified name, context, redo and undo functions
+     * @param name the name of the action
+     * @param redo the redo function
+     * @param undo the undo function
+     * @param ctx the action context
+     * @return the created action
+     */
+    public static Action forFuncs(String name, Consumer<ActionContext> redo, Consumer<ActionContext> undo, ActionContext ctx) {
+        if (undo == null || redo == null) LOGGER.warn("Action.forFuncs (name={}) invoked with at least one null function argument. Please use Action.forFunc or Action.forUndo instead.", name);
+        return new Action(name, ctx) {
+            @Override
+            protected void redoInternal() {
+                if (redo != null) redo.accept(getContext());
+            }
+
+            @Override
+            protected void undoInternal() {
+                if (undo != null) undo.accept(getContext());
+            }
+
+            @Override
+            public boolean undoable() {
+                return undo != null;
+            }
+        };
     }
 
     /**
@@ -109,6 +162,7 @@ public abstract class Action {
 
             @Override
             public ActionContext getContext() {
+                if (Action.this.getContext() == null) return other.getContext();
                 return Action.this.getContext();
             }
 
@@ -165,6 +219,21 @@ public abstract class Action {
             protected void undoInternal() {
                 f.run();
             }
+
+            @Override
+            public boolean undoable() {
+                return true;
+            }
+        };
+    }
+
+    public static Action blank(String name) {
+        return new Action(name) {
+            @Override
+            protected void redoInternal() {}
+
+            @Override
+            protected void undoInternal() {}
 
             @Override
             public boolean undoable() {

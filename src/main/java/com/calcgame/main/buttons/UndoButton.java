@@ -12,7 +12,7 @@ public class UndoButton extends FuncButton {
     public UndoButton() {
         super("UNDO");
         text = "UNDO";
-        tooltip = "Undoes the last click.";
+        tooltip = "Undoes the last action (clicking a button, etc.)";
     }
 
     @Override

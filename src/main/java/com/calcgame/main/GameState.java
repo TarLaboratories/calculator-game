@@ -221,13 +221,17 @@ public class GameState {
                 Events.ROUND_END, new Event("roundEnd"),
                 Events.ROUND_START, new Event("roundStart"),
                 Events.REROLL, new Event("shopReroll"),
-                Events.BUY, new Event("buy")
+                Events.BUY, new Event("buy"),
+                Events.KEY_PRESS, new Event("keyPress"),
+                Events.MOUSE_CLICK, new Event("mouseClick")
         ));
         prepareRender();
         loadMods();
         addSystemButtons();
         prepareCalculatorRender();
         nextRound();
+        GameLoop loop = new GameLoop(this);
+        loop.loop();
     }
 
     /**
@@ -255,6 +259,7 @@ public class GameState {
         window = new Frame();
         window.setTitle("Calculator Game");
         window.setSize(600, 600);
+        window.setLocation(100, 100);
         window.setLayout(null);
         window.addWindowListener(new WindowAdapter() {
             @Override
@@ -443,9 +448,9 @@ public class GameState {
                 JSONArray arr = obj.getJSONArray("starting_buttons");
                 arr.forEach((o) -> {
                     if (button_lookup.containsKey((String) o))
-                        buttons.add(button_lookup.get((String) o), Properties.count(2.));
+                        buttons.add(button_lookup.get((String) o), new PyComplex(2));
                     else if (button_lookup.containsKey("%s:%s".formatted(mod_id, o)))
-                        buttons.add(button_lookup.get("%s:%s".formatted(mod_id, o)), Properties.count(2.));
+                        buttons.add(button_lookup.get("%s:%s".formatted(mod_id, o)), new PyComplex(2));
                     else LOGGER.warn("Mod {} contains an unknown starting button {}, ignoring", mod_id, ((String) o).contains(":") ? o : "%s:%s".formatted(mod_id, o));
                 });
             }
@@ -679,9 +684,19 @@ public class GameState {
     public String numToString(PyComplex x) {
         if (x.real == 0 && x.imag == 0) return "0";
         if (x.__cmp__(PyComplex.Inf) == 0) return "Infinity";
-        String tmp = x.toString();
-        if (tmp.endsWith("+0j)") && tmp.startsWith("(")) tmp = tmp.substring(1, tmp.length() - 4);
-        return tmp;
+        if (Math.abs(x.imag) < 1e-6) return numToString(x.real);
+        else return "%s+%si".formatted(numToString(x.real), numToString(x.imag));
+    }
+
+    /**
+     * Returns a human-readable string representing this number. This should be preferred over {@link Double#toString()}
+     * @param x the number to stringify
+     * @return A human-readable string representing this number.
+     */
+    public String numToString(double x) {
+        if (Math.abs(x) > 5e10) return "%.1e".formatted(x);
+        if (Math.abs(x - Math.round(x)) < 1e-6) return "%d".formatted(Math.round(x));
+        else return "%.3f".formatted(x);
     }
 
     /**
@@ -712,6 +727,7 @@ public class GameState {
      * Returns a list of all buttons registered
      * @return a list of all buttons registered
      */
+    @ForMods
     public List<CalcButton> getAllButtons() {
         return all_buttons;
     }
@@ -746,6 +762,7 @@ public class GameState {
      * @param in the list from which to choose
      * @return the randomly chosen element
      */
+    @ForMods
     public Object randomChoice(List<Object> in) {
         return in.get(randint(0, in.size()));
     }
@@ -772,6 +789,7 @@ public class GameState {
      * @param id The id to register the function under. It's only effect is to be used in {@link GameState#removeOnRoundStart(String)} later.
      * @param f The Python function to register. Must be a callable python object.
      */
+    @ForMods
     public void onRoundStart(String id, PyObject f) {
         getEvent(Events.ROUND_START).addListener(Action.forFunction(f::__call__, "py_%s_listener".formatted(id)), id);
     }
@@ -780,6 +798,7 @@ public class GameState {
      * Removes the function that was previously registered using {@link GameState#onRoundStart(String, PyObject)}
      * @param id the id of the function to remove
      */
+    @ForMods
     public void removeOnRoundStart(String id) {
         getEvent(Events.ROUND_START).removeListener(id);
     }
@@ -790,6 +809,7 @@ public class GameState {
      * @param b the divisor
      * @return {@code true} with a chance of {@code a/b}, {@code false} otherwise
      */
+    @ForMods
     public boolean chance(int a, int b) {
         return this.randint(0, b) < a;
     }
@@ -887,8 +907,12 @@ public class GameState {
      * @return the input action
      */
     public Action appendToLastAction(Action action) {
-        if (undo_stack.isEmpty()) return action;
+        if (undo_stack.isEmpty()) {
+            LOGGER.warn("Appending to last action when no actions exist!");
+            return action;
+        }
         undo_stack.set(cur_undo_stack_i, undo_stack.get(cur_undo_stack_i).andThen(action));
+        if (!action.name.startsWith("APPENDED/")) action.name = "APPENDED/" + action.name;
         return action;
     }
 
@@ -897,6 +921,7 @@ public class GameState {
      * will be appended to the {@code doAction parameter} (by the means of {@link Action#andThen(Action)}), before it is executed.
      * @param action the {@code Action} to append
      */
+    @ForMods
     public void appendToNextAction(Action action) {
         temp_action = temp_action.andThen(action);
     }
@@ -905,6 +930,7 @@ public class GameState {
      * Returns the context of the last executed {@code Action}
      * @return the context of the last executed {@code Action}
      */
+    @ForMods
     public ActionContext getCurrentActionContext() {
         if (undo_stack.isEmpty()) return null;
         return undo_stack.get(cur_undo_stack_i).getContext();

@@ -1,5 +1,6 @@
 package com.calcgame.main;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
@@ -7,15 +8,24 @@ import org.python.core.PyComplex;
 import org.python.core.PyObject;
 import org.python.util.PythonInterpreter;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.Writer;
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.function.Consumer;
+
+import static org.lwjgl.glfw.GLFW.glfwGetTime;
 
 /**
  * A utility class that should never be instantiated.
  * All methods are static.
  */
 public class Utils {
+    private static final Logger LOGGER = LogManager.getLogger();
+
     /**
      * A private constructor to prevent accidental instantiations of this class
      */
@@ -124,6 +134,7 @@ public class Utils {
      * @param out the logger to use for the python functions to output
      * @return an action object, that has a python function with the name {@code name} as {@link Action#redo()}, and a function with name {@code name + "_rev"} as {@link Action#undoInternal()}
      */
+    @SuppressWarnings("unused")
     public static Action actionFromPy(PythonInterpreter py, String script, String name, Logger out) {
         return actionFromPy(py, script, name, out, null, null);
     }
@@ -150,5 +161,27 @@ public class Utils {
         if (o.keySet().contains("is_null")) return null;
         if (o.keySet().contains("inf")) return PyComplex.Inf;
         return new PyComplex(o.getDouble("real"), o.getDouble("imag"));
+    }
+
+    public static String getFileContents(String path) throws FileNotFoundException {
+        File file = new File(path);
+        LOGGER.debug("Reading file contents: {}", file.getAbsoluteFile());
+        return new Scanner(file).useDelimiter("$").next();
+    }
+
+    public static float[] toFloatArray(List<Float> a) {
+        float[] out = new float[a.size()];
+        for (int i = 0; i < a.size(); i++) out[i] = a.get(i);
+        return out;
+    }
+
+    public static int[] toIntArray(List<Integer> a) {
+        int[] out = new int[a.size()];
+        for (int i = 0; i < a.size(); i++) out[i] = a.get(i);
+        return out;
+    }
+
+    public static double getTime() {
+        return glfwGetTime();
     }
 }

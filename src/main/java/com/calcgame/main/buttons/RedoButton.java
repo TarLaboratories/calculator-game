@@ -12,6 +12,7 @@ public class RedoButton extends FuncButton {
     public RedoButton() {
         super("REDO");
         text = "REDO";
+        tooltip = "Redoes the last undone action";
     }
 
     @Override

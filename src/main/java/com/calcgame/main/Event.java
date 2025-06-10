@@ -2,6 +2,7 @@ package com.calcgame.main;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -54,14 +55,20 @@ public class Event {
      * @param privateListenerId the id of the private listener, ignored if {@code null}
      */
     public void emit(ActionContext ctx, @Nullable String privateListenerId) {
-        if (privateListenerId != null) ctx.logger().debug("Emitting event {} with private listener id {}", name, privateListenerId);
-        else ctx.logger().debug("Emitting event {}", name);
+        Logger logger = ctx.logger() == null ? LOGGER : ctx.logger();
+        if (privateListenerId != null) logger.debug("Emitting event {} with private listener id {}", name, privateListenerId);
+        else logger.debug("Emitting event {}", name);
+        if (ctx.data() != null) logger.debug("Event data: {}", ctx.data());
         ctx.state().appendToLastAction(new Action("%sEvent".formatted(name)) {
             @Override
             protected void redoInternal() {
                 try {
+                    assert getContext() != null;
                     if (privateListenerId != null && private_listeners.containsKey(privateListenerId)) getContext().state().appendToLastAction(private_listeners.get(privateListenerId)).redo();
-                    listeners.forEach((_, action) -> getContext().state().appendToLastAction(action).redo());
+                    listeners.forEach((id, action) -> {
+                        action.setContext(ctx);
+                        getContext().state().appendToLastAction(action).redo();
+                    });
                 } catch (EventInterrupt e) {
                     LOGGER.debug("Event interrupted: {}", e.getMessage());
                 }

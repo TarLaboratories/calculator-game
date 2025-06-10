@@ -109,8 +109,9 @@ public class FuncButton implements CalcButton {
                 return ctx;
             }
         };
-        if (onAdd == null) {
-            if (!isVital()) LOGGER.warn("No add handler defined for button '{}'", text);
+        if (onAdd == null || properties.collection != state.getCurrentButtons()) {
+            LOGGER.trace("Skipping executing onAdd as the button was added to the shop, or onAdd is null");
+            if (!isVital() && onAdd == null) LOGGER.warn("No add handler defined for button '{}'", text);
             state.appendToLastAction(action).redo();
             return;
         }
@@ -211,8 +212,9 @@ public class FuncButton implements CalcButton {
             out.text = args.getFirst();
             out.mod_id = mod_id;
             if (args.size() > 2) out.tooltip = args.get(2);
+            if (args.size() <= 3) u = null;
             out.onClick = Utils.actionFromPy(py, args.get(1), "on_click", out.LOGGER, f, u);
-            out.onAdd = Utils.actionFromPy(py, args.get(1), "on_add", out.LOGGER, (_) -> {}, (_) -> {});
+            out.onAdd = Utils.actionFromPy(py, args.get(1), "on_add", out.LOGGER, (ignored) -> {}, (ignored) -> {});
         } catch (RuntimeException e) {
             LOGGER.error("Failed to create new function button", e);
         }
@@ -254,7 +256,7 @@ public class FuncButton implements CalcButton {
                 }
                 Button b = new Button(text);
                 b.setBounds(bounds);
-                b.addActionListener((_) -> onClick(state, properties));
+                b.addActionListener((ignored) -> onClick(state, properties));
                 bounds.x += bounds.width + state.getButtonPadding()/2;
                 bounds.width *= 3;
                 b.addMouseListener(new MouseAdapter() {
