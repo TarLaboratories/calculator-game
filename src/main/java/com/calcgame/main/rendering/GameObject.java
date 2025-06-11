@@ -20,6 +20,7 @@ public class GameObject {
     protected final List<GameObject> children = new ArrayList<>();
 
     protected GameObject() {
+        scale = 1;
         position = new Vector3f();
         rotation = new Vector3f();
         setPosition(new Vector3f(0));
