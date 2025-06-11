@@ -1,13 +1,16 @@
-package com.calcgame.main.rendering;
+package com.calcgame.main.objects;
 
+import com.calcgame.main.rendering.FontTexture;
+import com.calcgame.main.rendering.Mesh;
+import com.calcgame.main.rendering.Texture;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.joml.Matrix4f;
+import org.joml.Vector2f;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class TextObject extends GameObject {
+public class TextObject extends ScreenObject {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final float Z_POS = 0.0f;
     private static final int VERTICES_PER_QUAD = 4;
@@ -108,22 +111,25 @@ public class TextObject extends GameObject {
     }
 
     @Override
-    void render(Transformation transformation, Matrix4f viewMatrix, ShaderProgram shaderProgram) {
-        super.render(transformation, viewMatrix, shaderProgram);
-    }
-
-    public int getWidth() {
+    public float getWidth() {
         return width;
     }
 
-    public int getHeight() {
+    @Override
+    public float getHeight() {
         return fontTexture.getTexture().getHeight();
     }
 
+    @Override
     public void setCentered(boolean centered) {
         if (centered == this.centered) return;
         this.centered = centered;
         rebuildMesh();
+    }
+
+    @Override
+    public Vector2f getPadding() {
+        return new Vector2f(.5f, .5f);
     }
 
     private void rebuildMesh() {

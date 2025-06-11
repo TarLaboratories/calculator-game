@@ -1,8 +1,11 @@
 package com.calcgame.main;
 
+import com.calcgame.main.rendering.Triangle;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
+import org.joml.Rectanglef;
+import org.joml.Vector3f;
 import org.json.JSONObject;
 import org.python.core.PyComplex;
 import org.python.core.PyObject;
@@ -12,6 +15,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.Writer;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -181,7 +185,26 @@ public class Utils {
         return out;
     }
 
+    public static float[] getVertexArray(List<Vector3f> vertices) {
+        float[] out = new float[vertices.size()*3];
+        for (int i = 0; i < vertices.size(); i++) {
+            out[3*i] = vertices.get(i).x;
+            out[3*i + 1] = vertices.get(i).y;
+            out[3*i + 2] = vertices.get(i).z;
+        }
+        return out;
+    }
+
+    public static float[] getVertexArray(Vector3f... vertices) {
+        return getVertexArray(Arrays.stream(vertices).toList());
+    }
+
     public static double getTime() {
         return glfwGetTime();
+    }
+
+    public static boolean intersectRectangles(Rectanglef a, Rectanglef b) {
+        return ((a.minX > b.minX && a.minX < b.maxX) || (a.maxX > b.minX && a.maxX < b.maxX)) &&
+                ((a.minY > b.minY && a.minY < b.maxY) || (a.maxY > b.minY && a.maxY < b.maxY));
     }
 }

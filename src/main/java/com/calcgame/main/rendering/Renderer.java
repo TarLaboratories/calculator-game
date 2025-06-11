@@ -21,7 +21,7 @@ public class Renderer {
     public static final float FOV = (float) Math.toRadians(60.0f);
     public static final float Z_NEAR = 0.01f;
     public static final float Z_FAR = 1000.f;
-    private final Vector3f ambientLight = new Vector3f(0.5f);
+    private final Vector3f ambientLight = new Vector3f(1f);
     @SuppressWarnings("FieldCanBeLocal")
     private final float ambientLightFactor = .5f;
 

@@ -48,10 +48,7 @@ public class GameObject {
     }
 
     public void setPosition(Vector3f coords) {
-        this.position.x = coords.x;
-        this.position.y = coords.y;
-        this.position.z = coords.z;
-        children.forEach((child -> child.setPosition(coords)));
+        this.move(new Vector3f(coords).sub(this.position));
     }
 
     public void move(Vector3f delta) {
@@ -68,8 +65,12 @@ public class GameObject {
     }
 
     public void setScale(float scale) {
-        this.scale = scale;
-        children.forEach((child) -> child.setScale(scale));
+        this.multiplyScale(scale/this.scale);
+    }
+
+    public void multiplyScale(float scaleMultiplier) {
+        this.scale = this.scale*scaleMultiplier;
+        children.forEach((child) -> child.multiplyScale(scaleMultiplier));
     }
 
     public Vector3f getRotation() {
@@ -77,10 +78,14 @@ public class GameObject {
     }
 
     public void setRotation(float x, float y, float z) {
-        this.rotation.x = x;
-        this.rotation.y = y;
-        this.rotation.z = z;
-        children.forEach((child) -> child.setRotation(x, y, z));
+        addRotation(x - this.rotation.x, y - this.rotation.y, z - this.rotation.z);
+    }
+
+    public void addRotation(float x, float y, float z) {
+        this.rotation.x += x;
+        this.rotation.y += y;
+        this.rotation.z += z;
+        this.children.forEach((child) -> child.addRotation(x, y, z));
     }
 
     public Mesh getMesh() {
@@ -107,7 +112,7 @@ public class GameObject {
         return distance;
     }
 
-    void render(Transformation transformation, Matrix4f viewMatrix, ShaderProgram shaderProgram) {
+    protected void render(Transformation transformation, Matrix4f viewMatrix, ShaderProgram shaderProgram) {
         Matrix4f modelViewMatrix = transformation.getModelViewMatrix(this, viewMatrix);
         shaderProgram.setUniform("modelViewMatrix", modelViewMatrix);
         shaderProgram.setUniform("material", mesh.getMaterial());

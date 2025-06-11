@@ -1,5 +1,6 @@
 package com.calcgame.main;
 
+import com.calcgame.main.objects.Button;
 import com.calcgame.main.rendering.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,7 +33,7 @@ public class GameLoop {
 
     public void init(GameState state) {
         glfwInit();
-        window = new Window.Builder().build(state, "Test", 400, 500);
+        window = new Window.Builder().build(state, "Test", 800, 1000);
         window.select();
         window.setVisible(true);
         GL.createCapabilities();
@@ -69,7 +70,7 @@ public class GameLoop {
             }
         }, "placeOnClick");
         objects = new ArrayList<>();
-        objects.add(new Button(state, new Vector3f(0, 0, -4), Mesh.loadMesh("cube", Texture.getTexture("cube")), "this is a long string for testing", Action.forFunction(() -> LOGGER.debug("lol"), "eee")));
+        objects.add(new Button(state, new Vector3f(0, 0, -4), Mesh.loadMesh("cube", Texture.getTexture("cube")), "this is a long string for testing", new Vector3f(0, 0, 1), Action.forFunction(() -> LOGGER.debug("lol"), "eee")));
         lights = new Lights();
         lights.addLight(new SpotLight(new PointLight(new Vector3f(1, 1, 1), new Vector3f(0, 0, 0), 2), new Vector3f(0, 0, -1), 80));
         //lights.addLight(new PointLight(new Vector3f(1), new Vector3f(0, 0, -10), 5));
@@ -114,6 +115,7 @@ public class GameLoop {
         } else {
             window.showCursor();
         }
+        //window.updateSize();
     }
 
     public GameLoop(GameState state) {

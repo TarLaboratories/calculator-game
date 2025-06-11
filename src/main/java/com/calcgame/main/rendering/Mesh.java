@@ -128,6 +128,16 @@ public class Mesh {
     }
 
     public Mesh(float[] positions, float[] textCoords, float[] normals, int[] indices) {
+        this(positions, textCoords, normals, indices, new Material(
+                new Vector4f(0f, 0f, 0f, 0), // new Vector4f(0.59f, 0.45f, 0.35f, 1),
+                new Vector4f(0, 0, 0, 1),
+                new Vector4f(0.59f, 0.45f, 0.35f, 1),
+                true,
+                1
+        ));
+    }
+
+    public Mesh(float[] positions, float[] textCoords, float[] normals, int[] indices, Material material) {
         vertexCount = indices.length;
         vaoId = glGenVertexArrays();
         glBindVertexArray(vaoId);
@@ -136,13 +146,7 @@ public class Mesh {
         textCoordsVboId = createVbo(1, textCoords, 2);
         normalsVboId = createVbo(2, normals);
         triangles = new ArrayList<>();
-        material = new Material(
-                new Vector4f(0.59f, 0.45f, 0.35f, 1), // new Vector4f(0.59f, 0.45f, 0.35f, 1),
-                new Vector4f(0, 0, 0, 1),
-                new Vector4f(0.59f, 0.45f, 0.35f, 1),
-                true,
-                1
-        );
+        this.material = material;
         for (int i = 0; i < indices.length/3; i++) {
             triangles.add(new Triangle(
                     new Vector3f(
@@ -363,5 +367,26 @@ public class Mesh {
             meshes.put(params, mesh);
         }
         return meshes.get(params);
+    }
+
+    public static Mesh quad(Vector3f a, Vector3f b, Vector3f c, Vector3f d, Vector3f normal, Vector4f color) {
+        float[] vertices = Utils.getVertexArray(a, b, c, d);
+        int[] indices = new int[] {
+                1, 2, 3,
+                1, 3, 4
+        };
+        float[] textCoords = new float[] {
+                0, 0,
+                0, 1,
+                1, 1,
+                1, 0
+        };
+        return new Mesh(vertices, textCoords, new float[] {normal.x, normal.y, normal.z}, indices, new Material(
+                new Vector4f(color),
+                new Vector4f(color),
+                new Vector4f(color),
+                false,
+                1
+        ));
     }
 }

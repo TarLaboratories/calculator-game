@@ -13,7 +13,6 @@ import java.util.Map;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class Window {
@@ -209,10 +208,17 @@ public class Window {
     }
 
     public void hideCursor() {
-        glfwSetInputMode(id, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+        glfwSetInputMode(id, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 
     public void showCursor() {
         glfwSetInputMode(id, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    public void updateSize() {
+        int[] w = new int[1];
+        int[] h = new int[1];
+        glfwGetWindowSize(id, w, h);
+        this.setSize(w[0], h[0]);
     }
 }
