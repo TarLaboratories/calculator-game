@@ -1,6 +1,7 @@
 package com.calcgame.main;
 
 import com.calcgame.main.buttons.Properties;
+import com.calcgame.main.rendering.GameObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
@@ -24,6 +25,7 @@ import java.util.List;
  * Starts the game when constructed.
  */
 public class GameState {
+    private static final boolean IGNORE_UNDO_RESTRICTIONS = false;
     /**
      * The logger used in this class
      */
@@ -209,6 +211,11 @@ public class GameState {
     protected long seed;
 
     /**
+     * The game loop that handles user input and rendering
+     */
+    protected GameLoop gameLoop;
+
+    /**
      * Constructs a new GameState and starts the game.
      */
     public GameState() {
@@ -216,22 +223,33 @@ public class GameState {
         seed = random.nextLong();
         random.setSeed(seed);
         events = new HashMap<>(Map.of(
-                Events.ADD, new Event("buttonAdd"),
-                Events.CLICK, new Event("buttonClick"),
-                Events.ROUND_END, new Event("roundEnd"),
-                Events.ROUND_START, new Event("roundStart"),
-                Events.REROLL, new Event("shopReroll"),
-                Events.BUY, new Event("buy"),
-                Events.KEY_PRESS, new Event("keyPress"),
-                Events.MOUSE_CLICK, new Event("mouseClick")
+                Events.ADD, new Event("buttonAdd", false),
+                Events.CLICK, new Event("buttonClick", false),
+                Events.ROUND_END, new Event("roundEnd", false),
+                Events.ROUND_START, new Event("roundStart", false),
+                Events.REROLL, new Event("shopReroll", false),
+                Events.BUY, new Event("buy", false),
+                Events.KEY_PRESS, new Event("keyPress", true),
+                Events.MOUSE_CLICK, new Event("mouseClick", false)
         ));
+        gameLoop = new GameLoop(this);
         prepareRender();
         loadMods();
         addSystemButtons();
         prepareCalculatorRender();
         nextRound();
-        GameLoop loop = new GameLoop(this);
-        loop.loop();
+        gameLoop.loop();
+    }
+
+    /**
+     * Adds an object to the screen
+     */
+    public void addObject(GameObject obj) {
+        if (gameLoop == null) {
+            LOGGER.warn("Attempt to add an object when game loop is not yet initialized!");
+            return;
+        }
+        gameLoop.addObject(obj);
     }
 
     /**
@@ -248,7 +266,7 @@ public class GameState {
         undo_button = new UndoButton();
         redo_button = new RedoButton();
         buttons.add(undo_button, Properties.count(1).infinity());
-        buttons.add(redo_button, Properties.count(1).infinity());
+        //buttons.add(redo_button, Properties.count(1).infinity());
     }
 
     /**
@@ -268,7 +286,7 @@ public class GameState {
                 window.dispose();
             }
         });
-        window.setVisible(true);
+        window.setVisible(false);
         overlay = new Panel();
         overlay.setLayout(null);
         overlay.setSize(600, 600);
@@ -683,7 +701,7 @@ public class GameState {
      */
     public String numToString(PyComplex x) {
         if (x.real == 0 && x.imag == 0) return "0";
-        if (x.__cmp__(PyComplex.Inf) == 0) return "Infinity";
+        if (x.__cmp__(PyComplex.Inf) == 0) return "Inf";
         if (Math.abs(x.imag) < 1e-6) return numToString(x.real);
         else return "%s+%si".formatted(numToString(x.real), numToString(x.imag));
     }
@@ -861,9 +879,19 @@ public class GameState {
      * to the previous action.
      */
     public void undo() {
-        if (cur_undo_stack_i >= 0 && undo_stack.get(cur_undo_stack_i).undoable()) {
-            undo_stack.get(cur_undo_stack_i).undo();
+        if (cur_undo_stack_i >= 0 && cur_undo_stack_i < undo_stack.size()) {
+            Action tmp = undo_stack.get(cur_undo_stack_i);
+            LOGGER.trace("Undo called, undo stack index is {}, top action is {}, undoable = {}, skip = {}", cur_undo_stack_i, tmp.name, tmp.undoable(), tmp.shouldSkipUndo());
+        } else {
+            LOGGER.trace("Undo called, undo stack index is {}", cur_undo_stack_i);
+        }
+        if (cur_undo_stack_i >= 0 && (undo_stack.get(cur_undo_stack_i).undoable() || IGNORE_UNDO_RESTRICTIONS)) {
+            if (!undo_stack.get(cur_undo_stack_i).shouldSkipUndo()) {
+                LOGGER.trace("Undoing {}", undo_stack.get(cur_undo_stack_i).name);
+                undo_stack.get(cur_undo_stack_i).undo();
+            }
             cur_undo_stack_i--;
+            if (undo_stack.get(cur_undo_stack_i + 1).shouldSkipUndo()) this.undo();
         } else if (cur_undo_stack_i == -1) LOGGER.debug("Cannot undo action, as there is nothing left to undo");
         else LOGGER.debug("Cannot undo action {}, as it is marked as not undoable", undo_stack.get(cur_undo_stack_i).name);
     }
@@ -872,9 +900,18 @@ public class GameState {
      * Moves the selection to the next action in the undo stack, and invokes {@link Action#redo()} of the newly selected action.
      */
     public void redo() {
+        cur_undo_stack_i++;
+        if (cur_undo_stack_i >= 0 && cur_undo_stack_i < undo_stack.size()) {
+            Action tmp = undo_stack.get(cur_undo_stack_i);
+            LOGGER.trace("Redo called, undo stack index is {}, top action is {}, undoable = {}, skip = {}", cur_undo_stack_i, tmp.name, tmp.undoable(), tmp.shouldSkipUndo());
+        } else {
+            LOGGER.trace("Redo called, undo stack index is {}", cur_undo_stack_i);
+        }
+        cur_undo_stack_i--;
         if (cur_undo_stack_i + 1 < undo_stack.size()) {
             cur_undo_stack_i++;
-            undo_stack.get(cur_undo_stack_i).redo();
+            if (undo_stack.get(cur_undo_stack_i).shouldSkipUndo()) this.redo();
+            else undo_stack.get(cur_undo_stack_i).redo();
         }
     }
 

@@ -5,6 +5,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joml.Vector2f;
 import org.json.JSONObject;
+import org.lwjgl.PointerBuffer;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -95,6 +96,13 @@ public class Window {
 
     private Window(GameState state, String title, int width, int height) {
         this.id = glfwCreateWindow(width, height, title, NULL, NULL);
+        if (this.id == NULL) {
+            PointerBuffer err = PointerBuffer.allocateDirect(1);
+            glfwGetError(err);
+            LOGGER.error("Returned window id is NULL, error message: {}", err.getStringUTF8());
+            LOGGER.error("Error when creating GLFW window, exiting...");
+            System.exit(1);
+        }
         this.width = width;
         this.height = height;
         this.resized = true;

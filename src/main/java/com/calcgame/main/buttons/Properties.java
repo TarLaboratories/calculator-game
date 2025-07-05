@@ -2,12 +2,12 @@ package com.calcgame.main.buttons;
 
 import com.calcgame.main.ButtonCollection;
 import com.calcgame.main.Utils;
+import com.calcgame.main.objects.Button;
+import com.calcgame.main.objects.TextObject;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONObject;
 import org.python.core.PyComplex;
 import org.python.core.PyDictionary;
-
-import java.awt.*;
 
 /**
  * The properties of a button in a {@link ButtonCollection}
@@ -52,12 +52,12 @@ public class Properties {
     /**
      * The rendered price label object (or {@code null} if it has not been rendered yet)
      */
-    public Label rendered_price;
+    public TextObject rendered_price;
 
     /**
      * The rendered count label object (or {@code null} if it has not been rendered yet)
      */
-    public Label rendered_count;
+    public TextObject rendered_count;
 
     /**
      * The collection to which the button belongs

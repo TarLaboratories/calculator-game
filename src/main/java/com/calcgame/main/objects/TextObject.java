@@ -1,28 +1,56 @@
 package com.calcgame.main.objects;
 
+import com.calcgame.main.GameState;
 import com.calcgame.main.rendering.FontTexture;
 import com.calcgame.main.rendering.Mesh;
+import com.calcgame.main.rendering.Resources;
 import com.calcgame.main.rendering.Texture;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joml.Vector2f;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 public class TextObject extends ScreenObject {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final float Z_POS = 0.0f;
+    private static final float SCALE_FACTOR = 32;
     private static final int VERTICES_PER_QUAD = 4;
     private String text;
     private final FontTexture fontTexture;
     private int width;
+    private final Vector3f offset;
     private boolean centered;
+    private Function<GameState, String> dynamicTextSupplier = null;
+
+    public TextObject(String text) {
+        this(text, FontTexture.loadFont(Resources.font()));
+    }
 
     public TextObject(String text, FontTexture fontTexture) {
+        this(text, fontTexture, new Vector3f(0));
+    }
+
+    public TextObject(String text, FontTexture fontTexture, Vector3f offset) {
+        super();
         this.text = text;
         this.fontTexture = fontTexture;
+        this.offset = new Vector3f(offset).mul(SCALE_FACTOR);
         this.setMesh(buildMesh());
+        setScale(1);
+    }
+
+    @Override
+    public void update(GameState state) {
+        super.update(state);
+        if (dynamicTextSupplier != null) setText(dynamicTextSupplier.apply(state));
+    }
+
+    public void setDynamicTextSupplier(Function<GameState, String> textSupplier) {
+        dynamicTextSupplier = textSupplier;
     }
 
     private Mesh buildMesh() {
@@ -31,38 +59,38 @@ public class TextObject extends ScreenObject {
         List<Float> normals = new ArrayList<>();
         List<Integer> indices = new ArrayList<>();
         Texture texture = fontTexture.getTexture();
-        float x = 0;
+        float x = offset.x;
         for (int i = 0; i < text.length(); i++) {
             FontTexture.CharInfo charInfo = fontTexture.getCharacterInfo(text.charAt(i));
 
             // Left Top vertex
             positions.add(x);
-            positions.add(0.0f);
-            positions.add(Z_POS);
+            positions.add(offset.y);
+            positions.add(offset.z + Z_POS);
             textCoords.add((float) charInfo.startX() / (float) texture.getWidth());
             textCoords.add(0f);
             indices.add(i*VERTICES_PER_QUAD);
 
             // Left Bottom vertex
             positions.add(x);
-            positions.add((float) texture.getHeight());
-            positions.add(Z_POS);
+            positions.add(offset.y + (float) texture.getHeight());
+            positions.add(offset.z + Z_POS);
             textCoords.add((float) charInfo.startX() / texture.getWidth());
             textCoords.add(1f);
             indices.add(i*VERTICES_PER_QUAD + 1);
 
             // Right Bottom vertex
             positions.add(x + charInfo.width()); // x
-            positions.add((float) texture.getHeight()); //y
-            positions.add(Z_POS); //z
+            positions.add(offset.y + (float) texture.getHeight()); //y
+            positions.add(offset.z + Z_POS); //z
             textCoords.add((float) (charInfo.startX() + charInfo.width()) / texture.getWidth());
             textCoords.add(1f);
             indices.add(i*VERTICES_PER_QUAD + 2);
 
             // Right Top vertex
             positions.add(x + charInfo.width()); // x
-            positions.add(0.0f); //y
-            positions.add(Z_POS); //z
+            positions.add(offset.y); //y
+            positions.add(offset.z + Z_POS); //z
             textCoords.add((float) (charInfo.startX() + charInfo.width()) / texture.getWidth());
             textCoords.add(0f);
             indices.add(i*VERTICES_PER_QUAD + 3);
@@ -102,7 +130,7 @@ public class TextObject extends ScreenObject {
 
     @Override
     public void setScale(float scale) {
-        super.setScale(scale/32);
+        super.setScale(scale/SCALE_FACTOR);
     }
 
     @Override

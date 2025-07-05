@@ -23,7 +23,7 @@ public class Renderer {
     public static final float Z_FAR = 1000.f;
     private final Vector3f ambientLight = new Vector3f(1f);
     @SuppressWarnings("FieldCanBeLocal")
-    private final float ambientLightFactor = .5f;
+    private final float ambientLightFactor = .25f;
 
     public Renderer() {
         shaderProgram = new ShaderProgram();

@@ -176,7 +176,21 @@ public abstract class Action {
                 if (other == _other || other == this) return this;
                 return super.andThen(_other);
             }
+
+            @Override
+            public boolean shouldSkipUndo() {
+                return other.shouldSkipUndo() || Action.this.shouldSkipUndo();
+            }
         };
+    }
+
+    /**
+     * If {@code true}, this action should be skipped over when undoing or redoing from the undo/redo queue.
+     * The action should still be added to the undo/redo queue.
+     * @return whether to skip over this action when undoing/redoing
+     */
+    public boolean shouldSkipUndo() {
+        return false;
     }
 
     /**

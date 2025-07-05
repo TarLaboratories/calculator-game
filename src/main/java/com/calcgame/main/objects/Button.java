@@ -14,16 +14,16 @@ public class Button extends GameObject {
     private final Logger LOGGER;
     private final TextObject label;
 
-    public Button(GameState state, Vector3f pos, Mesh mesh, String name, Vector3f labelPos, Action onClick) {
+    public Button(GameState state, Vector3f pos, Mesh mesh, String name, float textSize, Vector3f labelPos, Action onClick) {
         super(mesh);
-        this.LOGGER = LogManager.getLogger(name);
+        this.LOGGER = LogManager.getLogger("Button/" + name);
         LOGGER.trace("Creating label for button {}", name);
-        this.label = new TextObject(name, FontTexture.loadFont("font"));
+        this.label = new TextObject(name, FontTexture.loadFont("font", textSize), labelPos);
         this.label.setCentered(true);
-        this.label.setPosition(labelPos);
         this.children.add(this.label);
         this.setPosition(pos);
         LOGGER.trace("Created button {} at {}", name, pos);
+        LOGGER.trace("Label for created button is at {} with text offset {}", this.label.getPosition(), labelPos);
         state.getEvent(Events.MOUSE_CLICK).addListener(new Action(name) {
             @Override
             protected void redoInternal() {

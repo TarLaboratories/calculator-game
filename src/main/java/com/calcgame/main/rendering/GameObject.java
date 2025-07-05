@@ -1,5 +1,6 @@
 package com.calcgame.main.rendering;
 
+import com.calcgame.main.GameState;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joml.Intersectionf;
@@ -17,6 +18,9 @@ public class GameObject {
     private float scale;
     private final Vector3f rotation;
     private boolean selected;
+    private boolean shouldBeDestroyed = false;
+    private Runnable onSelect = null;
+    private Runnable onDeselect = null;
     protected final List<GameObject> children = new ArrayList<>();
 
     protected GameObject() {
@@ -25,7 +29,6 @@ public class GameObject {
         rotation = new Vector3f();
         setPosition(new Vector3f(0));
         setRotation(0, 0, 0);
-        setScale(1);
         setSelected(false);
     }
 
@@ -82,6 +85,10 @@ public class GameObject {
         addRotation(x - this.rotation.x, y - this.rotation.y, z - this.rotation.z);
     }
 
+    public void setRotation(Vector3f rotation) {
+        setRotation(rotation.x, rotation.y, rotation.z);
+    }
+
     public void addRotation(float x, float y, float z) {
         this.rotation.x += x;
         this.rotation.y += y;
@@ -94,6 +101,8 @@ public class GameObject {
     }
 
     public void setSelected(boolean selected) {
+        if (selected && !this.selected && this.onSelect != null) this.onSelect.run();
+        if (!selected && this.selected && this.onDeselect != null) this.onDeselect.run();
         this.selected = selected;
     }
 
@@ -103,6 +112,9 @@ public class GameObject {
 
     public float intersectRay(Vector3f origin, Vector3f dir, Transformation transformation, Matrix4f viewMatrix) {
         float distance = Float.POSITIVE_INFINITY;
+        if (shouldBeDestroyed) {
+            return distance;
+        }
         transformation.getModelViewMatrix(this, viewMatrix);
         for (Triangle triangle : getMesh().getTriangles()) {
             Triangle t = triangle.projected(transformation);
@@ -114,10 +126,49 @@ public class GameObject {
     }
 
     protected void render(Transformation transformation, Matrix4f viewMatrix, ShaderProgram shaderProgram) {
+        if (shouldBeDestroyed) {
+            LOGGER.debug("Attempt to render an object that should have been destroyed! Ignoring render call!");
+            return;
+        }
         Matrix4f modelViewMatrix = transformation.getModelViewMatrix(this, viewMatrix);
         shaderProgram.setUniform("modelViewMatrix", modelViewMatrix);
         shaderProgram.setUniform("material", mesh.getMaterial());
         mesh.render();
         for (GameObject child : children) child.render(transformation, viewMatrix, shaderProgram);
+    }
+
+    public void cleanupDestroyedChildren() {
+        children.forEach(GameObject::cleanupDestroyedChildren);
+        children.removeIf(GameObject::isDestroyed);
+    }
+
+    public void destroy() {
+        shouldBeDestroyed = true;
+        for (GameObject child : children) child.destroy();
+    }
+
+    public boolean isDestroyed() {
+        return shouldBeDestroyed;
+    }
+
+    public void addChild(GameObject child) {
+        addChild(child, false);
+    }
+
+    public void addChild(GameObject child, boolean syncPos) {
+        if (syncPos) child.setPosition(this.getPosition());
+        this.children.add(child);
+    }
+
+    public void setOnSelect(Runnable func) {
+        this.onSelect = func;
+    }
+
+    public void setOnDeselect(Runnable func) {
+        this.onDeselect = func;
+    }
+
+    public void update(GameState state) {
+        children.forEach((child) -> child.update(state));
     }
 }

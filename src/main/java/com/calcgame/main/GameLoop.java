@@ -1,6 +1,7 @@
 package com.calcgame.main;
 
-import com.calcgame.main.objects.Button;
+import com.calcgame.main.buttons.FuncButton;
+import com.calcgame.main.objects.TextObject;
 import com.calcgame.main.rendering.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,6 +23,7 @@ public class GameLoop {
     private Renderer renderer;
 
     private Window window;
+    private GameState state;
     private List<GameObject> objects;
     private Lights lights;
 
@@ -31,13 +33,16 @@ public class GameLoop {
     private boolean lockRotation;
     private Vector2f prevMousePos;
 
+    private boolean initialised = false;
+
     public void init(GameState state) {
+        this.state = state;
         glfwInit();
         window = new Window.Builder().build(state, "Test", 800, 1000);
         window.select();
         window.setVisible(true);
         GL.createCapabilities();
-        lockRotation = false;
+        lockRotation = true;
         prevMousePos = new Vector2f(window.getWidth() / 2.0f, window.getHeight() / 2.0f);
         renderer = new Renderer();
         glEnable(GL_DEPTH_TEST);
@@ -50,31 +55,47 @@ public class GameLoop {
         addKeyHoldCallback("moveUp", GLFW_KEY_SPACE, () -> renderer.getCamera().movePosition(0, 0.2f, 0));
         addKeyHoldCallback("moveDown", GLFW_KEY_LEFT_SHIFT, () -> renderer.getCamera().movePosition(0, -0.2f, 0));
         window.addKeyCallback("toggleRotation", GLFW_KEY_F, (action, mod) -> toggleRotationLock());
-        state.getEvent(Events.MOUSE_CLICK).addListener(new Action( "placeObject") {
+        /*state.getEvent(Events.MOUSE_CLICK).addListener(new Action( "placeObject") {
             @Override
             protected void redoInternal() {
                 assert getContext() != null;
                 if ((int) getContext().data().get("button") != GLFW_MOUSE_BUTTON_RIGHT) return;
-                objects.add(new GameObject(Mesh.loadMesh("cube")));
+                objects.add(new GameObject(Mesh.loadMesh("cube", Texture.getTexture("cube"))));
                 Vector3f pos = new Vector3f(renderer.getCamera().getPosition());
                 objects.getLast().setPosition(pos.add(getViewDirection().mul(4)));
                 objects.getLast().setScale(.1f);
             }
 
             @Override
-            protected void undoInternal() {}
+            protected void undoInternal() {
+                objects.removeLast();
+            }
 
             @Override
             public boolean undoable() {
-                return false;
+                return true;
             }
-        }, "placeOnClick");
+        }, "placeOnClick");*/
         objects = new ArrayList<>();
-        objects.add(new Button(state, new Vector3f(0, 0, -4), Mesh.loadMesh("cube", Texture.getTexture("cube")), "this is a long string for testing", new Vector3f(0, 0, 1), Action.forFunction(() -> LOGGER.debug("lol"), "eee")));
+        GameObject screen = new GameObject(Mesh.loadMesh(Resources.model("screen"), Texture.getTexture("cube")));
+        screen.setPosition(FuncButton.X_POS, FuncButton.Y_POS, FuncButton.Z_POS);
+        TextObject screenText = new TextObject("", FontTexture.loadFont(Resources.font()), new Vector3f(0, -.5f, -.51f));
+        screenText.setDynamicTextSupplier((gameState) -> {
+            String prefix = gameState.inShop ? "$" + gameState.numToString(gameState.getMoney()) : "Goal: " + gameState.numToString(gameState.getGoal());
+            String suffix = gameState.getScreen();
+            StringBuilder out = new StringBuilder(prefix);
+            while (out.length() + suffix.length() < 16) out.append(' ');
+            out.append(suffix);
+            return out.toString();
+        });
+        screen.addChild(screenText, true);
+        screen.setScale(.5f);
+        objects.add(screen);
         lights = new Lights();
-        lights.addLight(new SpotLight(new PointLight(new Vector3f(1, 1, 1), new Vector3f(0, 0, 0), 2), new Vector3f(0, 0, -1), 80));
+        lights.addLight(new SpotLight(new PointLight(new Vector3f(1, 1, 1), new Vector3f(0, 0, 0), 2), new Vector3f(0, 0, -1), 90));
         //lights.addLight(new PointLight(new Vector3f(1), new Vector3f(0, 0, -10), 5));
         window.setCursorPos(window.getWidth() / 2.0, window.getHeight() / 2.0);
+        initialised = true;
     }
 
     public void toggleRotationLock() {
@@ -93,9 +114,14 @@ public class GameLoop {
     }
 
     public void update() {
-        float rot = objects.getFirst().getRotation().x + 1.5f;
-        objects.getFirst().setRotation(rot, 0, 0);
+        cleanupDestroyedObjects();
         selectGameObject(objects, renderer.getCamera());
+        objects.forEach((obj) -> obj.update(state));
+    }
+
+    public void cleanupDestroyedObjects() {
+        objects.forEach(GameObject::cleanupDestroyedChildren);
+        objects.removeIf(GameObject::isDestroyed);
     }
 
     public void input() {
@@ -143,7 +169,7 @@ public class GameLoop {
                 sync(loopStartTime);
             }
         } catch (Exception exception) {
-            LOGGER.error("Caught unexpected exception: {}, exiting", exception.getMessage());
+            LOGGER.error("Caught unexpected exception, exiting", exception);
         } finally {
             window.destroy();
             cleanup();
@@ -167,8 +193,9 @@ public class GameLoop {
         Vector3f dir = new Vector3f();
         Camera camera = renderer.getCamera();
         if (lockRotation) {
-            dir.add(camera.getViewMatrix().positiveX(new Vector3f()).mul(-window.getMouse().x + window.getWidth()/2f));
-            dir.add(camera.getViewMatrix().positiveY(new Vector3f()).mul(window.getMouse().y - window.getHeight()/2f));
+            //float dist = window.getMouse().sub(new Vector2f(window.getWidth()/2f, window.getHeight()/2f)).length()/64;
+            dir.add(camera.getViewMatrix().positiveX(new Vector3f()).mul(-window.getMouse().x + window.getWidth()/2f).div(2));
+            dir.add(camera.getViewMatrix().positiveY(new Vector3f()).mul(window.getMouse().y - window.getHeight()/2f).div(2));
             dir.add(camera.getViewMatrix().positiveZ(new Vector3f()).mul(Renderer.Z_FAR + Renderer.Z_NEAR).div(2));
         } else dir = camera.getViewMatrix().positiveZ(dir);
         return dir.normalize().negate();
@@ -191,6 +218,15 @@ public class GameLoop {
         if (selectedGameObject != null) {
             selectedGameObject.setSelected(true);
         }
+    }
+
+    public void addObject(GameObject obj) {
+        LOGGER.trace("Adding a game object at {}", obj.getPosition());
+        if (!initialised) {
+            LOGGER.warn("Attempt to add an object when game loop has not yet completed initialization!");
+            return;
+        }
+        objects.add(obj);
     }
 
     public void cleanup() {

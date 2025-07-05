@@ -40,20 +40,24 @@ public class FontTexture {
     }
 
     public static FontTexture loadFont(String fontFileName) {
+        return loadFont(fontFileName, 16);
+    }
+
+    public static FontTexture loadFont(String fontFileName, float size) {
         try (InputStream stream = FontTexture.class.getResourceAsStream(Resources.font(fontFileName))) {
             if (stream == null) {
                 LOGGER.warn("Font file {} not found! Using default font.", fontFileName);
-                return loadFont("font");
+                return loadFont("font", size);
             }
             Font font = Font.createFont(Font.TRUETYPE_FONT, stream);
-            font = font.deriveFont(16f);
+            font = font.deriveFont(size);
             return new FontTexture(font, "ISO-8859-1");
         } catch (IOException e) {
             LOGGER.warn("Error when reading font file {}: {}! Using default font.", fontFileName, e);
-            return loadFont("font");
+            return loadFont("font", size);
         } catch (FontFormatException e) {
             LOGGER.warn("Font file {} invalid: {}! Using default font.", fontFileName, e);
-            return loadFont("font");
+            return loadFont("font", size);
         }
     }
 

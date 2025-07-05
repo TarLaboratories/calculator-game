@@ -1,15 +1,20 @@
 package com.calcgame.main.buttons;
 
 import com.calcgame.main.*;
+import com.calcgame.main.objects.Button;
+import com.calcgame.main.objects.TextObject;
+import com.calcgame.main.rendering.FontTexture;
+import com.calcgame.main.rendering.Mesh;
+import com.calcgame.main.rendering.Resources;
+import com.calcgame.main.rendering.Texture;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
 import org.python.core.PyComplex;
 import org.python.util.PythonInterpreter;
 
-import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.Rectangle;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -17,6 +22,26 @@ import java.util.function.Consumer;
  * A button that has functions for all main events
  */
 public class FuncButton implements CalcButton {
+    /**
+     * The X coordinate of the top left corner of the calculator screen
+     */
+    public static final float X_POS = -1;
+
+    /**
+     * The Y coordinate of the top left corner of the calculator screen
+     */
+    public static final float Y_POS = 2;
+
+    /**
+     * The Z coordinate of the top left corner of the calculator screen
+     */
+    public static final float Z_POS = -4;
+
+    /**
+     * The ratio of button coordinates to in-world coordinates
+     */
+    private static final float COORDS_RATIO = 100;
+
     /**
      * The text displayed on the button, and the second part of this button's id
      */
@@ -121,7 +146,7 @@ public class FuncButton implements CalcButton {
 
     @Override
     public void onClick(GameState state, Properties properties) {
-        if (onClick == null) throw new UnsupportedOperationException("This button was initialised without arguments, and is valid only for constructing com.calcgame.main.buttons");
+        if (onClick == null) throw new UnsupportedOperationException("This button was initialised without arguments, and is valid only for constructing buttons");
         if (properties.price != null) {
             if (state.getMoney().__cmp__(properties.price) == -1) return;
             ActionContext ctx = new ActionContext(state, properties, properties.pos, properties.collection, state.getScreen(), LOGGER);
@@ -131,9 +156,9 @@ public class FuncButton implements CalcButton {
                     state.subMoney(properties.price);
                     state.getCurrentButtons().add(FuncButton.this, properties.infinity ? PyComplex.Inf : new PyComplex(1));
                     properties.sold = true;
-                    if (properties.rendered_button != null) state.getWindow().remove(properties.rendered_button);
-                    if (properties.rendered_price != null) state.getWindow().remove(properties.rendered_price);
-                    if (properties.rendered_count != null) state.getWindow().remove(properties.rendered_count);
+                    if (properties.rendered_button != null) properties.rendered_button.destroy();
+                    if (properties.rendered_price != null) properties.rendered_price.destroy();
+                    if (properties.rendered_count != null) properties.rendered_count.destroy();
                     if (properties.infinity) state.getSellableButtons().remove(FuncButton.this);
                     destroy(state, properties);
                 }
@@ -228,38 +253,57 @@ public class FuncButton implements CalcButton {
                 //TODO write render for console
             }
             case WINDOW -> {
-                Window window = state.getWindow();
                 if (properties.sold) return;
                 if (properties.rendered_button != null) {
-                    window.remove(properties.rendered_button);
+                    properties.rendered_button.destroy();
                 }
-                Rectangle bounds = new Rectangle(properties.x, properties.y, getWidth(state, properties), getHeight(state, properties));
+                Rectangle bounds = new Rectangle(properties.x, -properties.y, getWidth(state, properties), getHeight(state, properties));
                 if (properties.count != null) {
                     if (properties.rendered_count != null) {
-                        window.remove(properties.rendered_count);
+                        properties.rendered_count.destroy();
                     }
-                    Label l = new Label(state.numToString(properties.count));
-                    l.setBounds(bounds.x, bounds.y + 3*bounds.height/4, bounds.width, bounds.height/4);
-                    l.setAlignment(Label.RIGHT);
-                    properties.rendered_count = l;
-                    window.add(l);
+                    properties.rendered_count = new TextObject(
+                            state.numToString(properties.count),
+                            FontTexture.loadFont(Resources.font(), 6),
+                            new Vector3f(
+                                    .7f // (bounds.width/2f) / COORDS_RATIO,
+                                    -.7f // (-bounds.height/2f) / COORDS_RATIO,
+                                    -.51f
+                            )
+                    );
                 }
                 if (properties.price != null) {
                     if (properties.rendered_price != null) {
-                        window.remove(properties.rendered_price);
+                        properties.rendered_price.destroy();
                     }
-                    Label l = new Label("$" + state.numToString(properties.price));
-                    l.setBounds(bounds.x, bounds.y, bounds.width, bounds.height/4);
-                    l.setAlignment(Label.LEFT);
-                    properties.rendered_price = l;
-                    window.add(l);
+                    properties.rendered_price = new TextObject(
+                            "$" + state.numToString(properties.price),
+                            FontTexture.loadFont(Resources.font(), 6),
+                            new Vector3f(
+                                    .7f // (-bounds.width/2f) / COORDS_RATIO,
+                                    -.7f // (bounds.height/2f) / COORDS_RATIO,
+                                    -.51f
+                            )
+                    );
                 }
-                Button b = new Button(text);
-                b.setBounds(bounds);
-                b.addActionListener((ignored) -> onClick(state, properties));
+                Button b = new Button(
+                        state,
+                        new Vector3f(bounds.x / COORDS_RATIO + X_POS, bounds.y / COORDS_RATIO + Y_POS, Z_POS),
+                        Mesh.loadMesh("cube", Texture.getTexture("cube")),
+                        text, 10f,
+                        new Vector3f(
+                                0,
+                                0,
+                                -.51f),
+                        Action.forFuncs("click", (ignored) -> onClick(state, properties), (ignored) -> {})
+                );
+                if (properties.rendered_count != null) b.addChild(properties.rendered_count, true);
+                if (properties.rendered_price != null) b.addChild(properties.rendered_price, true);
+                b.setScale(.5f);
+                //b.addActionListener((ignored) -> onClick(state, properties));
                 bounds.x += bounds.width + state.getButtonPadding()/2;
                 bounds.width *= 3;
-                b.addMouseListener(new MouseAdapter() {
+                /*b.addMouseListener(new MouseAdapter() {
                     @Override
                     public void mouseEntered(MouseEvent e) {
                         if (tooltip != null) state.setTooltip(tooltip, bounds);
@@ -269,18 +313,18 @@ public class FuncButton implements CalcButton {
                     public void mouseExited(MouseEvent e) {
                         state.removeTooltip();
                     }
-                });
+                });*/
                 properties.rendered_button = b;
-                window.add(b);
+                state.addObject(properties.rendered_button);
             }
         }
     }
 
     @Override
     public void destroy(GameState state, Properties properties) {
-        if (properties.rendered_button != null) state.getWindow().remove(properties.rendered_button);
-        if (properties.rendered_count != null) state.getWindow().remove(properties.rendered_count);
-        if (properties.rendered_price != null) state.getWindow().remove(properties.rendered_price);
+        if (properties.rendered_button != null) properties.rendered_button.destroy();
+        if (properties.rendered_count != null) properties.rendered_count.destroy();
+        if (properties.rendered_price != null) properties.rendered_price.destroy();
     }
 
     @Override

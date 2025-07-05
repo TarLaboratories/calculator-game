@@ -130,8 +130,8 @@ public class Mesh {
     public Mesh(float[] positions, float[] textCoords, float[] normals, int[] indices) {
         this(positions, textCoords, normals, indices, new Material(
                 new Vector4f(0f, 0f, 0f, 0), // new Vector4f(0.59f, 0.45f, 0.35f, 1),
-                new Vector4f(0, 0, 0, 1),
-                new Vector4f(0.59f, 0.45f, 0.35f, 1),
+                new Vector4f(0, 0, 0, 0),
+                new Vector4f(0, 0, 0, 0),
                 true,
                 1
         ));
@@ -227,7 +227,7 @@ public class Mesh {
     private static Mesh loadMeshInternal(String fileName) {
         List<String> lines;
         try {
-            lines = Utils.getFileContents(Resources.model(fileName)).lines().toList();
+            lines = Utils.getFileContents(fileName).lines().toList();
         } catch (FileNotFoundException e) {
             LOGGER.warn("Missing model file: {}", fileName);
             return loadMeshInternal(Resources.model("cube"));
@@ -372,8 +372,8 @@ public class Mesh {
     public static Mesh quad(Vector3f a, Vector3f b, Vector3f c, Vector3f d, Vector3f normal, Vector4f color) {
         float[] vertices = Utils.getVertexArray(a, b, c, d);
         int[] indices = new int[] {
-                1, 2, 3,
-                1, 3, 4
+                0, 1, 2,
+                0, 2, 3
         };
         float[] textCoords = new float[] {
                 0, 0,

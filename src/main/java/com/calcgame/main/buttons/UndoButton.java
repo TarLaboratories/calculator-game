@@ -1,5 +1,6 @@
 package com.calcgame.main.buttons;
 
+import com.calcgame.main.Action;
 import com.calcgame.main.GameState;
 
 /**
@@ -17,7 +18,25 @@ public class UndoButton extends FuncButton {
 
     @Override
     public void onClick(GameState state, Properties properties) {
-        state.undo();
+        state.appendToLastAction(new Action("undo") {
+            @Override
+            protected void redoInternal() {
+                state.undo();
+            }
+
+            @Override
+            protected void undoInternal() {}
+
+            @Override
+            public boolean undoable() {
+                return true;
+            }
+
+            @Override
+            public boolean shouldSkipUndo() {
+                return true;
+            }
+        }).redo();
     }
 
     @Override

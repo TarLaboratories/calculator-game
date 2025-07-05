@@ -2,7 +2,6 @@ package com.calcgame.main;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -31,14 +30,20 @@ public class Event {
     protected Map<String, Action> private_listeners;
 
     /**
+     * If {@code true}, when undone skips over this event's action and undoes the action before that.
+     */
+    private final boolean skipUndo;
+
+    /**
      * Constructs a new event with the specified name
      * @param name the name of the new event, used only for logging
      */
-    public Event(String name) {
+    public Event(String name, boolean skipUndo) {
         this.name = name;
         this.LOGGER = LogManager.getLogger("Event/%s".formatted(name));
         this.listeners = new HashMap<>();
         this.private_listeners = new HashMap<>();
+        this.skipUndo = skipUndo;
     }
 
     /**
@@ -59,13 +64,15 @@ public class Event {
         if (privateListenerId != null) logger.debug("Emitting event {} with private listener id {}", name, privateListenerId);
         else logger.debug("Emitting event {}", name);
         if (ctx.data() != null) logger.debug("Event data: {}", ctx.data());
+        HashMap<String, Action> tmp_listeners = new HashMap<>(listeners);
         ctx.state().appendToLastAction(new Action("%sEvent".formatted(name)) {
             @Override
             protected void redoInternal() {
                 try {
                     assert getContext() != null;
                     if (privateListenerId != null && private_listeners.containsKey(privateListenerId)) getContext().state().appendToLastAction(private_listeners.get(privateListenerId)).redo();
-                    listeners.forEach((id, action) -> {
+                    tmp_listeners.forEach((id, action) -> {
+                        LOGGER.trace("Calling listener with id {} (action name {})", id, action.name);
                         action.setContext(ctx);
                         getContext().state().appendToLastAction(action).redo();
                     });
@@ -85,6 +92,11 @@ public class Event {
             @Override
             public ActionContext getContext() {
                 return ctx;
+            }
+
+            @Override
+            public boolean shouldSkipUndo() {
+                return skipUndo;
             }
         }).redo();
     }
